@@ -8,6 +8,8 @@ import {
   LoaderCircle,
   RotateCcw,
   Search,
+  ShieldCheck,
+  ShieldX,
   Sparkles,
   Wallet,
   X,
@@ -20,10 +22,28 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { clsxSign, formatCompact, formatMoney, formatPct, formatPrice } from "@/lib/format";
+import { MODEL_LABELS } from "@/lib/forecast";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
-import type { CompanyForecast, Horizon, RunResponse, TradeSignal } from "@/lib/types";
+import type { CompanyForecast, Horizon, ModelId, RunResponse, TradeSignal } from "@/lib/types";
 import { DEFAULT_SYMBOLS, UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
+
+const MODEL_IDS: ModelId[] = [
+  "holt", "ols", "ar1", "momentum", "garch", "kalman", "arima", "ou", "ewma", "regime",
+];
+
+const MODEL_COLORS: Record<ModelId, string> = {
+  holt: "bg-sky-400",
+  ols: "bg-indigo-400",
+  ar1: "bg-amber-400",
+  momentum: "bg-emerald-400",
+  garch: "bg-rose-400",
+  kalman: "bg-violet-400",
+  arima: "bg-cyan-400",
+  ou: "bg-orange-400",
+  ewma: "bg-lime-400",
+  regime: "bg-fuchsia-400",
+};
 
 const HORIZONS: { value: Horizon; label: string }[] = [
   { value: 5, label: "1 week" },
@@ -183,6 +203,10 @@ export function Dashboard() {
   }
 
   function tradeSignal(q: CompanyForecast) {
+    if (!q.liveReady) {
+      book.notify(`${q.symbol}: 1-year backtest failed — signal blocked until verification passes.`);
+      return;
+    }
     if (q.signal === "HOLD") return;
     const order = signalOrder(q);
     if (!order) {
@@ -206,6 +230,8 @@ export function Dashboard() {
   const pnl = book.equity - STARTING_CASH;
   const pnlPct = pnl / STARTING_CASH;
   const liveCount = run?.quotes.filter((q) => q.source !== "simulated").length ?? 0;
+  const verified = run?.verification?.passed ?? false;
+  const readyCount = run?.quotes.filter((q) => q.liveReady).length ?? 0;
 
   return (
     <div className="flex min-h-full flex-col">
@@ -218,8 +244,8 @@ export function Dashboard() {
             <div>
               <div className="text-sm font-semibold tracking-tight">Signal Desk</div>
               <div className="text-[11px] text-white/45">
-                Ensemble forecast · paper book
-                {run ? ` · ${liveCount}/${run.quotes.length} live feeds` : ""}
+                10-model institutional ensemble · 1y backtest gate
+                {run ? ` · ${liveCount}/${run.quotes.length} live · ${readyCount} trade-ready` : ""}
               </div>
             </div>
           </div>
@@ -327,6 +353,42 @@ export function Dashboard() {
           </div>
         </section>
 
+        {run?.verification && (
+          <div
+            className={cn(
+              "flex flex-col gap-2 rounded-lg border px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between",
+              verified
+                ? "border-emerald-500/25 bg-emerald-500/8"
+                : "border-amber-500/25 bg-amber-500/8"
+            )}
+          >
+            <div className="flex items-start gap-2 text-sm">
+              {verified ? (
+                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-400" />
+              ) : (
+                <ShieldX className="mt-0.5 size-4 shrink-0 text-amber-400" />
+              )}
+              <div>
+                <div className="font-medium">
+                  Self-verification {verified ? "passed" : "attention"} — {run.verification.modelCount} models
+                </div>
+                <div className="text-xs text-white/55">
+                  {verified
+                    ? "Math suite and pipeline checks passed. Per-ticker signals still require a passing 1-year walk-forward backtest."
+                    : "One or more internal checks failed — review before trusting automated signals."}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {run.verification.cases.slice(0, 4).map((c) => (
+                <Badge key={c.name} variant={c.passed ? "secondary" : "destructive"} className="text-[10px]">
+                  {c.passed ? "✓" : "✗"} {c.name.split(" ").slice(0, 2).join(" ")}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {book.message && (
           <div className="flex items-center justify-between rounded-lg border border-sky-400/20 bg-sky-400/8 px-3 py-2 text-sm text-sky-100">
             <span>{book.message}</span>
@@ -397,17 +459,49 @@ export function Dashboard() {
 
             <Card className="bg-[#10161d]">
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <CardTitle>Trade the forecast</CardTitle>
-                  <Badge className={signalClass(quote.signal)} variant="outline">
-                    {quote.signal}
-                  </Badge>
+                  <div className="flex gap-1.5">
+                    <Badge className={signalClass(quote.signal)} variant="outline">
+                      {quote.signal}
+                    </Badge>
+                    {quote.rawSignal !== quote.signal && (
+                      <Badge variant="outline" className="text-white/45">
+                        raw {quote.rawSignal}
+                      </Badge>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={
+                        quote.liveReady
+                          ? "border-emerald-500/30 text-emerald-300"
+                          : "border-amber-500/30 text-amber-300"
+                      }
+                    >
+                      {quote.liveReady ? "Backtest ✓" : "Blocked"}
+                    </Badge>
+                  </div>
                 </div>
                 <CardDescription>{quote.rationale}</CardDescription>
               </CardHeader>
               <CardContent className="flex flex-col gap-4">
+                <div className="rounded-lg border border-white/8 bg-white/2 p-2.5">
+                  <div className="mb-1.5 text-[11px] tracking-wide text-white/40 uppercase">
+                    1-year walk-forward backtest
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                    <Metric label="Strategy" value={formatPct(quote.backtest.totalReturn)} tone={quote.backtest.totalReturn} />
+                    <Metric label="Benchmark" value={formatPct(quote.backtest.benchmarkReturn)} tone={quote.backtest.benchmarkReturn} />
+                    <Metric label="Sharpe" value={quote.backtest.sharpe.toFixed(2)} />
+                    <Metric label="Max DD" value={formatPct(-quote.backtest.maxDrawdown)} />
+                    <Metric label="Win rate" value={`${(quote.backtest.winRate * 100).toFixed(0)}%`} />
+                    <Metric label="Trades" value={String(quote.backtest.trades)} />
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-white/45">{quote.backtest.summary}</p>
+                </div>
+
                 <div className="grid grid-cols-2 gap-2 text-sm">
-                  <Metric label="Hit rate" value={`${(quote.metrics.hitRate * 100).toFixed(0)}%`} />
+                  <Metric label="WF hit rate" value={`${(quote.metrics.hitRate * 100).toFixed(0)}%`} />
                   <Metric label="MAPE" value={`${(quote.metrics.mape * 100).toFixed(1)}%`} />
                   <Metric label="Ann. implied" value={formatPct(quote.annualizedReturn, 1)} tone={quote.annualizedReturn} />
                   <Metric label="Confidence" value={`${(quote.confidence * 100).toFixed(0)}%`} />
@@ -415,19 +509,24 @@ export function Dashboard() {
 
                 <div>
                   <div className="mb-1.5 text-[11px] tracking-wide text-white/40 uppercase">
-                    Ensemble weights
+                    10-model ensemble weights
                   </div>
                   <div className="flex h-2 overflow-hidden rounded-full">
-                    <div className="bg-sky-400" style={{ width: `${quote.weights.holt * 100}%` }} />
-                    <div className="bg-indigo-400" style={{ width: `${quote.weights.ols * 100}%` }} />
-                    <div className="bg-amber-400" style={{ width: `${quote.weights.ar1 * 100}%` }} />
-                    <div className="bg-emerald-400" style={{ width: `${quote.weights.momentum * 100}%` }} />
+                    {MODEL_IDS.map((id) => (
+                      <div
+                        key={id}
+                        className={MODEL_COLORS[id]}
+                        style={{ width: `${quote.weights[id] * 100}%` }}
+                        title={MODEL_LABELS[id]}
+                      />
+                    ))}
                   </div>
-                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] text-white/50">
-                    <span>Holt {(quote.weights.holt * 100).toFixed(0)}%</span>
-                    <span>OLS {(quote.weights.ols * 100).toFixed(0)}%</span>
-                    <span>AR(1) {(quote.weights.ar1 * 100).toFixed(0)}%</span>
-                    <span>Momentum {(quote.weights.momentum * 100).toFixed(0)}%</span>
+                  <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] text-white/50 sm:grid-cols-3">
+                    {MODEL_IDS.map((id) => (
+                      <span key={id}>
+                        {id.toUpperCase()} {(quote.weights[id] * 100).toFixed(0)}%
+                      </span>
+                    ))}
                   </div>
                 </div>
 
@@ -469,9 +568,18 @@ export function Dashboard() {
                     <ArrowDownRight /> Sell
                   </Button>
                 </div>
-                <Button variant="secondary" onClick={() => tradeSignal(quote)} disabled={quote.signal === "HOLD"}>
-                  Execute {quote.signal} signal
+                <Button
+                  variant="secondary"
+                  onClick={() => tradeSignal(quote)}
+                  disabled={quote.signal === "HOLD" || !quote.liveReady}
+                >
+                  Execute {quote.rawSignal} signal
                 </Button>
+                {!quote.liveReady && (
+                  <p className="text-center text-[11px] text-amber-300/80">
+                    Automated signal blocked — 1-year backtest did not pass all gates. Manual paper trades still allowed.
+                  </p>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -483,11 +591,15 @@ export function Dashboard() {
               <div>
                 <CardTitle>Company forecasts</CardTitle>
                 <CardDescription>
-                  Same ensemble run across the names on your blotter.
+                  10-model ensemble · signals gated by 1-year backtest.
                 </CardDescription>
               </div>
-              <Button size="sm" onClick={tradeAllSignals} disabled={!run?.quotes.some((q) => q.signal !== "HOLD")}>
-                Trade all signals
+              <Button
+                size="sm"
+                onClick={tradeAllSignals}
+                disabled={!run?.quotes.some((q) => q.liveReady && q.signal !== "HOLD")}
+              >
+                Trade verified signals
               </Button>
             </CardHeader>
             <CardContent className="overflow-x-auto">
@@ -496,7 +608,7 @@ export function Dashboard() {
                   Add a ticker and run the model to see targets and trade signals.
                 </p>
               ) : (
-                <table className="w-full min-w-[640px] text-left text-sm">
+                <table className="w-full min-w-[760px] text-left text-sm">
                   <thead className="text-[11px] tracking-wide text-white/40 uppercase">
                     <tr className="border-b border-white/8">
                       <th className="py-2 pr-3 font-medium">Name</th>
@@ -504,7 +616,8 @@ export function Dashboard() {
                       <th className="py-2 pr-3 font-medium">Target</th>
                       <th className="py-2 pr-3 font-medium">Exp.</th>
                       <th className="py-2 pr-3 font-medium">Signal</th>
-                      <th className="py-2 pr-3 font-medium">Hit</th>
+                      <th className="py-2 pr-3 font-medium">1y BT</th>
+                      <th className="py-2 pr-3 font-medium">Sharpe</th>
                       <th className="py-2 font-medium" />
                     </tr>
                   </thead>
@@ -532,13 +645,21 @@ export function Dashboard() {
                           <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
                             {q.signal}
                           </span>
+                          {q.rawSignal !== q.signal && (
+                            <span className="ml-1 text-[10px] text-white/35">({q.rawSignal})</span>
+                          )}
                         </td>
-                        <td className="py-2.5 pr-3 text-white/60">{(q.metrics.hitRate * 100).toFixed(0)}%</td>
+                        <td className="py-2.5 pr-3">
+                          <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
+                            {q.liveReady ? "Pass" : "Fail"}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-3 font-mono text-white/60">{q.backtest.sharpe.toFixed(2)}</td>
                         <td className="py-2.5 text-right">
                           <Button
                             size="xs"
                             variant="outline"
-                            disabled={q.signal === "HOLD"}
+                            disabled={q.signal === "HOLD" || !q.liveReady}
                             onClick={() => tradeSignal(q)}
                           >
                             Trade
@@ -635,9 +756,11 @@ export function Dashboard() {
         </div>
 
         <p className="pb-4 text-center text-[11px] leading-relaxed text-white/35">
-          Educational paper-trading desk. Forecasts blend Holt smoothing, log-price regression, AR(1)
-          returns, and moving-average momentum, weighted by walk-forward error. This is not investment
-          advice and will not match live brokerage fills.
+          Institutional-style ensemble: Holt, OLS, AR(1), momentum, GARCH(1,1), Kalman trend, ARIMA(1,1,0),
+          Ornstein–Uhlenbeck, RiskMetrics EWMA, and vol-regime switching — weighted by walk-forward RMSE.
+          Each ticker must pass a 1-year backtest (direction hit ≥50%, Sharpe ≥0.15, max drawdown ≤40%, ≥3 trades)
+          before automated signals fire. Run <code className="text-white/50">npm test</code> for self-verification.
+          Educational only — not investment advice; real brokerage fills will differ.
         </p>
       </main>
     </div>

@@ -1,19 +1,43 @@
 # Signal Desk
 
-Paper-trading desk that **runs a price forecast** for the companies you pick, then lets you **trade the signals**.
+Paper-trading desk with an **institutional-grade 10-model ensemble**, **1-year walk-forward backtest**, and **self-verification** before any automated trade signal fires.
 
-The model is an ensemble of four classical time-series pieces, weighted by walk-forward error on recent history:
+## Models (top-tier quant stack)
 
-- Holt linear trend (double exponential smoothing on log prices)
-- OLS log-price regression
-- AR(1) on daily log returns
-- 20/50 moving-average momentum
+Each model forecasts log-price paths; the ensemble weights them by inverse walk-forward RMSE:
 
-It projects a path over 1 week, 2 weeks, 1 month, or 1 quarter, with an 80% band from residual volatility, and turns that into BUY / HOLD / SELL plus a suggested position size.
+| Model | Category |
+|-------|----------|
+| Holt linear trend | Exponential smoothing |
+| OLS log-price regression | Factor regression |
+| AR(1) return model | Time series |
+| Cross-sectional momentum | Quant factor |
+| GARCH(1,1) vol forecast | Volatility modeling |
+| Kalman local trend | State-space |
+| ARIMA(1,1,0) | Time series |
+| Ornstein–Uhlenbeck MR | Mean reversion |
+| RiskMetrics EWMA (λ=0.94) | Risk parity |
+| Vol regime switch | Regime detection |
 
-Market data comes from Yahoo Finance (Stooq backup). If both feeds fail, the desk falls back to a simulated series so the UI still runs.
+## 1-year backtest gate
 
-This is educational paper trading, not investment advice.
+Before a ticker gets a tradable BUY/SELL (vs HOLD), it must pass a **252-day walk-forward backtest**:
+
+- Direction hit rate ≥ 50%
+- Sharpe ≥ 0.15 (per round-trip, annualized)
+- Max drawdown ≤ 40%
+- At least 3 round-trips in the test window
+
+Failed tickers still show forecasts and allow **manual paper trades**, but automated signals stay blocked.
+
+## Self-verification
+
+```bash
+npm test          # 17 unit/integration checks (models, ensemble, backtest, pipeline)
+curl localhost:43123/api/verify   # same suite via HTTP
+```
+
+All checks must pass before the desk reports verification green.
 
 ## Run locally
 
@@ -24,16 +48,10 @@ npm run dev
 
 Open [http://localhost:43123](http://localhost:43123).
 
-## Use it
-
-1. Search a ticker or click a name (up to six on the blotter).
-2. Pick a forecast horizon and wait for the run — or hit **Run model**.
-3. Read the target, expected return, hit rate, and ensemble weights.
-4. Buy/sell sized shares, **Execute signal**, or **Trade all signals**.
-5. Positions and fills stay in this browser (`localStorage`). Reset restores $100,000 cash.
-
 ## API
 
-`GET /api/run?symbols=AAPL,NVDA&horizon=21` — history + forecast + trade signal.
+- `GET /api/run?symbols=AAPL,NVDA&horizon=21` — forecast + backtest + gated signal
+- `GET /api/verify` — self-verification suite
+- `GET /api/search?q=nvidia` — ticker lookup
 
-`GET /api/search?q=nvidia` — ticker lookup.
+Educational only — not investment advice.

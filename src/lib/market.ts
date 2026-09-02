@@ -193,7 +193,7 @@ function simulateSeries(symbol: string): QuoteSeries {
   };
 }
 
-export async function loadQuote(symbol: string, range = "2y"): Promise<QuoteSeries> {
+export async function loadQuote(symbol: string, range = "5y"): Promise<QuoteSeries> {
   const ticker = symbol.trim().toUpperCase();
   if (!/^[A-Z0-9.^]{1,10}$/.test(ticker)) {
     throw new Error("Invalid ticker");
