@@ -72,6 +72,7 @@ export function Dashboard() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [shareOverride, setShareOverride] = useState<Record<string, number>>({});
   const searchRef = useRef<HTMLDivElement>(null);
+  const requestSeq = useRef(0);
 
   const marks = useMemo(() => {
     const m: Record<string, number> = {};
@@ -94,33 +95,48 @@ export function Dashboard() {
       setError("Add a company to run the forecast.");
       return;
     }
+    const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(
-        `/api/run?symbols=${encodeURIComponent(nextSymbols.join(","))}&horizon=${nextHorizon}`
+        `/api/run?symbols=${encodeURIComponent(nextSymbols.join(","))}&horizon=${nextHorizon}`,
+        { cache: "no-store" }
       );
       const json = (await res.json()) as RunResponse & { error?: string };
+      if (seq !== requestSeq.current) return;
       if (!res.ok) throw new Error(json.error ?? "Forecast failed");
+      if (!json.quotes?.length) {
+        throw new Error(
+          json.errors?.length
+            ? json.errors.map((e) => `${e.symbol}: ${e.message}`).join(" · ")
+            : "No forecasts returned for the selected tickers."
+        );
+      }
       setRun(json);
       setActive((prev) =>
         json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? prev)
       );
-      if (json.errors.length && json.quotes.length === 0) {
+      if (json.errors.length) {
         setError(json.errors.map((e) => `${e.symbol}: ${e.message}`).join(" · "));
       }
     } catch (err) {
+      if (seq !== requestSeq.current) return;
+      if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Could not run the model.");
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const t = window.setTimeout(() => {
+    const timer = window.setTimeout(() => {
       void load(symbols, horizon);
-    }, 80);
-    return () => window.clearTimeout(t);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      requestSeq.current += 1;
+    };
   }, [symbols, horizon, load]);
 
   useEffect(() => {
@@ -407,7 +423,7 @@ export function Dashboard() {
           </Card>
         )}
 
-        {loading && !quote && (
+        {loading && !run && (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
             <Card className="h-[420px] animate-pulse bg-white/4" />
             <Card className="h-[420px] animate-pulse bg-white/4" />
