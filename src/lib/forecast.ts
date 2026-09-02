@@ -72,7 +72,7 @@ export function runForecast(series: QuoteSeries, horizon: Horizon): CompanyForec
   const { weights, logPath, metrics: wfMetrics } = fitEnsemble(closes, horizon);
   const backtest = runBacktest(closes, dates, horizon);
 
-  const last = closes[closes.length - 1];
+  const last = Math.round(closes[closes.length - 1] * 100) / 100;
   const lastDate = bars[bars.length - 1].date;
   const prev = closes[closes.length - 2] ?? last;
   const changePct = last / prev - 1;

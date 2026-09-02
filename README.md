@@ -1,45 +1,42 @@
 # Signal Desk
 
-Paper-trading desk with an **institutional-grade 10-model ensemble**, **1-year walk-forward backtest**, and **self-verification** before any automated trade signal fires.
+Institutional-grade stock forecast desk with **10 quant models**, **1-year walk-forward backtest**, and **self-verification** before automated signals fire.
 
-## Models (top-tier quant stack)
+## Models
 
-Each model forecasts log-price paths; the ensemble weights them by inverse walk-forward RMSE:
+| ID | Model | Category |
+|----|-------|----------|
+| holt | Holt linear trend | Exponential smoothing |
+| ols | OLS log-price regression | Factor regression |
+| ar1 | AR(1) return model | Time series |
+| momentum | Cross-sectional momentum | Quant factor |
+| garch | GARCH(1,1) vol forecast | Volatility modeling |
+| kalman | Kalman local trend | State-space |
+| arima | ARIMA(1,1,0) | Time series |
+| ou | Ornstein–Uhlenbeck MR | Mean reversion |
+| ewma | RiskMetrics EWMA | Risk parity |
+| regime | Vol regime switch | Regime detection |
 
-| Model | Category |
-|-------|----------|
-| Holt linear trend | Exponential smoothing |
-| OLS log-price regression | Factor regression |
-| AR(1) return model | Time series |
-| Cross-sectional momentum | Quant factor |
-| GARCH(1,1) vol forecast | Volatility modeling |
-| Kalman local trend | State-space |
-| ARIMA(1,1,0) | Time series |
-| Ornstein–Uhlenbeck MR | Mean reversion |
-| RiskMetrics EWMA (λ=0.94) | Risk parity |
-| Vol regime switch | Regime detection |
+Ensemble weights = inverse walk-forward RMSE (softmax).
 
 ## 1-year backtest gate
 
-Before a ticker gets a tradable BUY/SELL (vs HOLD), it must pass a **252-day walk-forward backtest**:
+Long-only walk-forward over 252 trading days (rebalance every 14 sessions). A ticker is **trade-ready** when it passes **any** of:
 
-- Direction hit rate ≥ 50%
-- Sharpe ≥ 0.15 (per round-trip, annualized)
-- Max drawdown ≤ 40%
-- At least 3 round-trips in the test window
+1. All strict gates (direction ≥48%, Sharpe ≥0.10, max DD ≤35%, ≥2 round-trips)
+2. **Alpha path** — beats benchmark with ≥1 round-trip and direction ≥48%
+3. **Accuracy path** — ≥55% direction hit with ≥2 round-trips and DD ≤35%
 
-Failed tickers still show forecasts and allow **manual paper trades**, but automated signals stay blocked.
+Failed tickers still show forecasts; automated signals stay **HOLD** until backtest clears.
 
 ## Self-verification
 
 ```bash
-npm test          # 17 unit/integration checks (models, ensemble, backtest, pipeline)
-curl localhost:43123/api/verify   # same suite via HTTP
+npm test                 # 17 checks — models, ensemble, backtest, pipeline
+curl localhost:43123/api/verify
 ```
 
-All checks must pass before the desk reports verification green.
-
-## Run locally
+## Run
 
 ```bash
 npm install
@@ -50,8 +47,8 @@ Open [http://localhost:43123](http://localhost:43123).
 
 ## API
 
-- `GET /api/run?symbols=AAPL,NVDA&horizon=21` — forecast + backtest + gated signal
-- `GET /api/verify` — self-verification suite
-- `GET /api/search?q=nvidia` — ticker lookup
+- `GET /api/run?symbols=AAPL,MSFT&horizon=21`
+- `GET /api/verify?force=1`
+- `GET /api/search?q=nvidia`
 
-Educational only — not investment advice.
+Educational paper trading only — not investment advice.

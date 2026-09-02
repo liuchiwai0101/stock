@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runForecast } from "@/lib/forecast";
 import { loadQuote } from "@/lib/market";
-import { runVerificationSuite } from "@/lib/verification";
+import { getVerificationSummary } from "@/lib/verification-cache";
 import type { Horizon, RunResponse } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
   const body: RunResponse = {
     horizon,
     generatedAt: new Date().toISOString(),
-    verification: runVerificationSuite(),
+    verification: getVerificationSummary(),
     quotes: quotes.filter((q) => q !== null),
     errors,
   };

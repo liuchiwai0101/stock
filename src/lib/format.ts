@@ -7,13 +7,14 @@ export function formatMoney(value: number, currency = "USD"): string {
 }
 
 export function formatPrice(value: number): string {
-  const digits = value >= 1000 ? 2 : value >= 10 ? 2 : 3;
+  const v = Math.round(value * 100) / 100;
+  const digits = v >= 1000 ? 2 : v >= 10 ? 2 : 2;
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
-  }).format(value);
+  }).format(v);
 }
 
 export function formatPct(value: number, digits = 2): string {
