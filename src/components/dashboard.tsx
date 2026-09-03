@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Activity,
   ArrowDownRight,
   ArrowUpRight,
+  BrainCircuit,
+  Database,
+  Lightbulb,
   LoaderCircle,
   RotateCcw,
   Search,
@@ -233,8 +236,8 @@ export function Dashboard() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0b1016]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1440px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+      <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0b1016]/85 backdrop-blur-xl">
+        <div className="mx-auto flex max-w-[1280px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/25">
               <Activity className="size-4" />
@@ -242,7 +245,7 @@ export function Dashboard() {
             <div>
               <div className="text-sm font-semibold tracking-tight">Signal Desk</div>
               <div className="text-[11px] text-white/45">
-                10-model institutional ensemble · 1y backtest gate
+                Data → Model → Advice
                 {run ? ` · ${liveCount}/${run.quotes.length} live · ${readyCount} trade-ready` : ""}
               </div>
             </div>
@@ -250,17 +253,13 @@ export function Dashboard() {
           <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
             <Stat label="Equity" value={formatMoney(book.equity)} />
             <Stat label="Cash" value={formatMoney(book.portfolio.cash)} />
-            <Stat
-              label="Book P&L"
-              value={formatMoney(pnl)}
-              hint={formatPct(pnlPct)}
-              tone={pnl}
-            />
+            <Stat label="Book P&L" value={formatMoney(pnl)} hint={formatPct(pnlPct)} tone={pnl} />
           </div>
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-[1440px] flex-1 flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
+      <main className="mx-auto flex w-full max-w-[1280px] flex-1 flex-col gap-8 px-4 py-5 sm:px-6 sm:py-7">
+        {/* —— Controls —— */}
         <section className="flex flex-col gap-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div ref={searchRef} className="relative min-w-0 flex-1">
@@ -272,8 +271,8 @@ export function Dashboard() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && query.trim()) addSymbol(query.trim());
                 }}
-                placeholder="Search a company or ticker — AAPL, NVIDIA, JPM…"
-                className="h-9 bg-white/3 pl-8"
+                placeholder="Add companies — AAPL, NVIDIA, JPM…"
+                className="h-10 bg-white/3 pl-8"
               />
               {searchOpen && visibleHits.length > 0 && (
                 <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-white/10 bg-[#121820] shadow-2xl">
@@ -308,7 +307,6 @@ export function Dashboard() {
               </Button>
             </div>
           </div>
-
           <div className="flex flex-wrap gap-1.5">
             {symbols.map((symbol) => (
               <button
@@ -337,7 +335,7 @@ export function Dashboard() {
               </button>
             ))}
             {UNIVERSE.filter((c) => !symbols.includes(c.symbol))
-              .slice(0, 8)
+              .slice(0, 6)
               .map((c) => (
                 <button
                   key={c.symbol}
@@ -351,8 +349,6 @@ export function Dashboard() {
           </div>
         </section>
 
-        {run?.verification && <VerificationBanner verification={run.verification} />}
-
         {book.message && (
           <div className="flex items-center justify-between rounded-lg border border-sky-400/20 bg-sky-400/8 px-3 py-2 text-sm text-sky-100">
             <span>{book.message}</span>
@@ -365,364 +361,475 @@ export function Dashboard() {
         {error && !quote && (
           <Card className="border-rose-500/20 bg-rose-500/8">
             <CardHeader>
-              <CardTitle>Model did not run</CardTitle>
+              <CardTitle>Could not load data</CardTitle>
               <CardDescription>{error}</CardDescription>
             </CardHeader>
           </Card>
         )}
 
         {loading && !run && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
-            <Card className="h-[420px] animate-pulse bg-white/4" />
-            <Card className="h-[420px] animate-pulse bg-white/4" />
+          <div className="grid gap-4">
+            <Card className="h-[280px] animate-pulse bg-white/4" />
+            <Card className="h-[220px] animate-pulse bg-white/4" />
+            <Card className="h-[180px] animate-pulse bg-white/4" />
           </div>
         )}
 
         {quote && (
           <>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <Card className="bg-[#10161d]">
-              <CardHeader className="border-b border-white/6">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <CardTitle className="text-lg">
-                      {quote.name}{" "}
-                      <span className="text-white/40">{quote.symbol}</span>
-                    </CardTitle>
-                    <CardDescription className="mt-1 flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-base text-white">{formatPrice(quote.last)}</span>
-                      <span className={clsxSign(quote.changePct)}>{formatPct(quote.changePct)}</span>
-                      <Badge variant="outline">
-                        {quote.source === "simulated" ? "Simulated feed" : "Live market"}
-                      </Badge>
-                    </CardDescription>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[11px] tracking-wide text-white/40 uppercase">
-                      {horizon}-day target
-                    </div>
-                    <div className="text-lg font-medium">{formatPrice(quote.targetPrice)}</div>
-                    <div className={cn("text-sm", clsxSign(quote.expectedReturn))}>
-                      {formatPct(quote.expectedReturn)}
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-3">
-                <ForecastChart quote={quote} />
-                <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-white/40">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="h-0.5 w-4 bg-[var(--chart-line)]" /> History
-                  </span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="h-0.5 w-4 border-t border-dashed border-[var(--forecast-line)]" /> Forecast
-                  </span>
-                  <span>80% band from residual volatility</span>
-                </div>
-              </CardContent>
-            </Card>
+            {/* ========== 1. DATA ========== */}
+            <section className="flex flex-col gap-4">
+              <StageHeading
+                step="01"
+                icon={<Database className="size-4" />}
+                title="Data"
+                subtitle="Market prices and history for the selected companies"
+              />
 
-            <Card className="bg-[#10161d]">
-              <CardHeader>
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle>Trade the forecast</CardTitle>
-                  <div className="flex gap-1.5">
-                    <Badge className={signalClass(quote.signal)} variant="outline">
-                      {quote.signal}
-                    </Badge>
-                    {quote.rawSignal !== quote.signal && (
-                      <Badge variant="outline" className="text-white/45">
-                        raw {quote.rawSignal}
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric label="Last" value={formatPrice(quote.last)} />
+                <Metric
+                  label="Day change"
+                  value={formatPct(quote.changePct)}
+                  tone={quote.changePct}
+                />
+                <Metric label="Source" value={quote.source === "simulated" ? "Simulated" : "Live feed"} />
+                <Metric label="History bars" value={String(quote.history.length)} />
+              </div>
+
+              <Card className="bg-[#10161d]">
+                <CardHeader className="border-b border-white/6 pb-3">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-xl">
+                        {quote.name} <span className="text-white/35">{quote.symbol}</span>
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Price history with {horizon}-day forecast overlay ·{" "}
+                        {quote.source === "simulated" ? "simulated series" : "live market data"}
+                      </CardDescription>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-2xl font-medium tracking-tight">{formatPrice(quote.last)}</div>
+                      <div className={cn("text-sm", clsxSign(quote.changePct))}>{formatPct(quote.changePct)}</div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <ForecastChart quote={quote} />
+                  <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-white/40">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-0.5 w-5 bg-[var(--chart-line)]" /> History
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-0.5 w-5 border-t border-dashed border-[var(--forecast-line)]" /> Forecast path
+                    </span>
+                    <span>80% band from residual vol</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-[#10161d]">
+                <CardHeader>
+                  <CardTitle className="text-base">Company blotter</CardTitle>
+                  <CardDescription>Observed prices across your selected names</CardDescription>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-sm">
+                    <thead className="text-[11px] tracking-wide text-white/40 uppercase">
+                      <tr className="border-b border-white/8">
+                        <th className="py-2 pr-3 font-medium">Name</th>
+                        <th className="py-2 pr-3 font-medium">Last</th>
+                        <th className="py-2 pr-3 font-medium">Day</th>
+                        <th className="py-2 pr-3 font-medium">Source</th>
+                        <th className="py-2 font-medium">Bars</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(run?.quotes ?? []).map((q) => (
+                        <tr
+                          key={q.symbol}
+                          className={cn("border-b border-white/6 last:border-0", q.symbol === active && "bg-white/3")}
+                        >
+                          <td className="py-2.5 pr-3">
+                            <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
+                              <div className="font-medium">{q.symbol}</div>
+                              <div className="text-[11px] text-white/40">{q.name}</div>
+                            </button>
+                          </td>
+                          <td className="py-2.5 pr-3 font-mono">{formatPrice(q.last)}</td>
+                          <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.changePct))}>
+                            {formatPct(q.changePct)}
+                          </td>
+                          <td className="py-2.5 pr-3 text-xs text-white/50">
+                            {q.source === "simulated" ? "Simulated" : "Live"}
+                          </td>
+                          <td className="py-2.5 font-mono text-white/55">{q.history.length}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* ========== 2. MODEL ========== */}
+            <section className="flex flex-col gap-4">
+              <StageHeading
+                step="02"
+                icon={<BrainCircuit className="size-4" />}
+                title="Model"
+                subtitle="10-model institutional ensemble · walk-forward weighting"
+              />
+
+              {run?.verification && <VerificationBanner verification={run.verification} />}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric label="WF hit rate" value={`${(quote.metrics.hitRate * 100).toFixed(0)}%`} />
+                <Metric label="MAPE" value={`${(quote.metrics.mape * 100).toFixed(1)}%`} />
+                <Metric label="RMSE" value={quote.metrics.rmse.toFixed(2)} />
+                <Metric label="Residual vol" value={`${(quote.metrics.residualVol * 100).toFixed(2)}%`} />
+              </div>
+
+              <Card className="bg-[#10161d]">
+                <CardHeader>
+                  <CardTitle className="text-base">Ensemble mix</CardTitle>
+                  <CardDescription>
+                    Softmax over inverse walk-forward RMSE — lower error earns higher weight
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ModelWeightsPanel quote={quote} />
+                </CardContent>
+              </Card>
+
+              <ModelResultsTable
+                models={quote.models}
+                last={quote.last}
+                ensembleTarget={quote.targetPrice}
+              />
+
+              <Card className="bg-[#10161d]">
+                <CardHeader>
+                  <CardTitle className="text-base">Model reference</CardTitle>
+                  <CardDescription>What each component estimates and how</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {MODEL_CATALOG.map((m) => (
+                      <div key={m.id} className="rounded-lg border border-white/8 bg-white/2 px-3 py-2.5">
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <div className="text-[10px] tracking-wide text-sky-300/80 uppercase">{m.id}</div>
+                          <div className="text-[10px] text-white/35">{m.category}</div>
+                        </div>
+                        <div className="text-sm font-medium leading-snug">{m.label}</div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-white/50">{m.description}</p>
+                        <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-sky-300/65">{m.formula}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* ========== 3. CONCLUSION / ADVICE ========== */}
+            <section className="flex flex-col gap-4">
+              <StageHeading
+                step="03"
+                icon={<Lightbulb className="size-4" />}
+                title="Conclusion & advice"
+                subtitle="Backtest gate, signal, and paper-trade actions"
+              />
+
+              <Card className="border border-sky-400/20 bg-gradient-to-br from-sky-400/8 to-transparent">
+                <CardHeader>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-lg">Advice for {quote.symbol}</CardTitle>
+                      <CardDescription className="mt-1 max-w-2xl">{quote.rationale}</CardDescription>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Badge className={cn("px-3 py-1 text-sm", signalClass(quote.signal))} variant="outline">
+                        {quote.signal}
                       </Badge>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={
-                        quote.liveReady
-                          ? "border-emerald-500/30 text-emerald-300"
-                          : "border-amber-500/30 text-amber-300"
-                      }
+                      {quote.rawSignal !== quote.signal && (
+                        <Badge variant="outline" className="text-white/45">
+                          raw {quote.rawSignal}
+                        </Badge>
+                      )}
+                      <Badge
+                        variant="outline"
+                        className={
+                          quote.liveReady
+                            ? "border-emerald-500/30 text-emerald-300"
+                            : "border-amber-500/30 text-amber-300"
+                        }
+                      >
+                        {quote.liveReady ? "Backtest cleared" : "Signal blocked"}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <Metric label={`${horizon}d target`} value={formatPrice(quote.targetPrice)} />
+                    <Metric
+                      label="Expected"
+                      value={formatPct(quote.expectedReturn)}
+                      tone={quote.expectedReturn}
+                    />
+                    <Metric
+                      label="Ann. implied"
+                      value={formatPct(quote.annualizedReturn, 1)}
+                      tone={quote.annualizedReturn}
+                    />
+                    <Metric label="Confidence" value={`${(quote.confidence * 100).toFixed(0)}%`} />
+                  </div>
+
+                  <div className="flex flex-col gap-3 rounded-lg border border-white/8 bg-[#0d1319] p-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-white/60">Shares</span>
+                      <span className="font-mono">
+                        {shares} · {formatMoney(shares * quote.last)}
+                      </span>
+                    </div>
+                    <Slider
+                      min={1}
+                      max={Math.max(20, sharesForWeight(book.equity, quote.last, 0.35))}
+                      value={[shares]}
+                      onValueChange={(v) => {
+                        const next = Array.isArray(v) ? Math.round(Number(v[0])) : Math.round(Number(v));
+                        setShareOverride((prev) => ({ ...prev, [quote.symbol]: Math.max(1, next) }));
+                      }}
+                    />
+                    <div className="text-[11px] text-white/40">
+                      Suggested size {Math.abs(quote.recommendedWeight * 100).toFixed(0)}% of equity
+                      {quote.signal !== "HOLD" ? ` · ${quote.signal.toLowerCase()}` : ""}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        className="bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
+                        onClick={() =>
+                          execute("BUY", quote, shares, `Manual buy · target ${formatPrice(quote.targetPrice)}`)
+                        }
+                      >
+                        <ArrowUpRight /> Buy
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() =>
+                          execute("SELL", quote, shares, `Manual sell · target ${formatPrice(quote.targetPrice)}`)
+                        }
+                      >
+                        <ArrowDownRight /> Sell
+                      </Button>
+                    </div>
+                    <Button
+                      variant="secondary"
+                      onClick={() => tradeSignal(quote)}
+                      disabled={quote.signal === "HOLD" || !quote.liveReady}
                     >
-                      {quote.liveReady ? "Backtest ✓" : "Blocked"}
-                    </Badge>
+                      Execute {quote.rawSignal} signal
+                    </Button>
+                    {!quote.liveReady && (
+                      <p className="text-center text-[11px] text-amber-300/80">
+                        Automated signal blocked until 1-year backtest passes. Manual paper trades still allowed.
+                      </p>
+                    )}
                   </div>
-                </div>
-                <CardDescription>{quote.rationale}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-4">
-                <BacktestPanel backtest={quote.backtest} />
+                </CardContent>
+              </Card>
 
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <Metric label="WF hit rate" value={`${(quote.metrics.hitRate * 100).toFixed(0)}%`} />
-                  <Metric label="MAPE" value={`${(quote.metrics.mape * 100).toFixed(1)}%`} />
-                  <Metric label="Ann. implied" value={formatPct(quote.annualizedReturn, 1)} tone={quote.annualizedReturn} />
-                  <Metric label="Confidence" value={`${(quote.confidence * 100).toFixed(0)}%`} />
-                </div>
+              <BacktestPanel backtest={quote.backtest} />
 
-                <ModelWeightsPanel quote={quote} />
+              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
+                <Card className="bg-[#10161d]">
+                  <CardHeader className="flex flex-row items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">Signal board</CardTitle>
+                      <CardDescription>Ensemble conclusions across the blotter</CardDescription>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={tradeAllSignals}
+                      disabled={!run?.quotes.some((q) => q.liveReady && q.signal !== "HOLD")}
+                    >
+                      Trade verified signals
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="overflow-x-auto">
+                    <table className="w-full min-w-[640px] text-left text-sm">
+                      <thead className="text-[11px] tracking-wide text-white/40 uppercase">
+                        <tr className="border-b border-white/8">
+                          <th className="py-2 pr-3 font-medium">Name</th>
+                          <th className="py-2 pr-3 font-medium">Target</th>
+                          <th className="py-2 pr-3 font-medium">Exp.</th>
+                          <th className="py-2 pr-3 font-medium">Signal</th>
+                          <th className="py-2 pr-3 font-medium">1y BT</th>
+                          <th className="py-2 pr-3 font-medium">Sharpe</th>
+                          <th className="py-2 font-medium" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(run?.quotes ?? []).map((q) => (
+                          <tr
+                            key={q.symbol}
+                            className={cn(
+                              "border-b border-white/6 last:border-0",
+                              q.symbol === active && "bg-white/3"
+                            )}
+                          >
+                            <td className="py-2.5 pr-3">
+                              <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
+                                <div className="font-medium">{q.symbol}</div>
+                                <div className="text-[11px] text-white/40">{q.name}</div>
+                              </button>
+                            </td>
+                            <td className="py-2.5 pr-3 font-mono">{formatPrice(q.targetPrice)}</td>
+                            <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.expectedReturn))}>
+                              {formatPct(q.expectedReturn)}
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
+                                {q.signal}
+                              </span>
+                            </td>
+                            <td className="py-2.5 pr-3">
+                              <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
+                                {q.liveReady ? "Pass" : "Fail"}
+                              </span>
+                            </td>
+                            <td className="py-2.5 pr-3 font-mono text-white/60">{q.backtest.sharpe.toFixed(2)}</td>
+                            <td className="py-2.5 text-right">
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                disabled={q.signal === "HOLD" || !q.liveReady}
+                                onClick={() => tradeSignal(q)}
+                              >
+                                Trade
+                              </Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </CardContent>
+                </Card>
 
-                <div>
-                  <div className="mb-2 flex items-center justify-between text-sm">
-                    <span className="text-white/60">Shares</span>
-                    <span className="font-mono">{shares} · {formatMoney(shares * quote.last)}</span>
-                  </div>
-                  <Slider
-                    min={1}
-                    max={Math.max(20, sharesForWeight(book.equity, quote.last, 0.35))}
-                    value={[shares]}
-                    onValueChange={(v) => {
-                      const next = Array.isArray(v) ? Math.round(Number(v[0])) : Math.round(Number(v));
-                      setShareOverride((prev) => ({ ...prev, [quote.symbol]: Math.max(1, next) }));
-                    }}
-                  />
-                  <div className="mt-1 text-[11px] text-white/40">
-                    Model size {Math.abs(quote.recommendedWeight * 100).toFixed(0)}% of equity
-                    {quote.signal !== "HOLD" ? ` · ${quote.signal.toLowerCase()}` : ""}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    className="bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
-                    onClick={() =>
-                      execute("BUY", quote, shares, `Manual buy · target ${formatPrice(quote.targetPrice)}`)
-                    }
-                  >
-                    <ArrowUpRight /> Buy
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={() =>
-                      execute("SELL", quote, shares, `Manual sell · target ${formatPrice(quote.targetPrice)}`)
-                    }
-                  >
-                    <ArrowDownRight /> Sell
-                  </Button>
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => tradeSignal(quote)}
-                  disabled={quote.signal === "HOLD" || !quote.liveReady}
-                >
-                  Execute {quote.rawSignal} signal
-                </Button>
-                {!quote.liveReady && (
-                  <p className="text-center text-[11px] text-amber-300/80">
-                    Automated signal blocked — 1-year backtest did not pass all gates. Manual paper trades still allowed.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <ModelResultsTable
-            models={quote.models}
-            last={quote.last}
-            ensembleTarget={quote.targetPrice}
-          />
+                <Card className="bg-[#10161d]">
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <Wallet className="size-4 text-white/50" /> Paper book
+                      </CardTitle>
+                      <CardDescription>Local fills · $100k start</CardDescription>
+                    </div>
+                    <Button size="sm" variant="ghost" onClick={book.reset}>
+                      <RotateCcw /> Reset
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-4">
+                    {book.portfolio.positions.length === 0 ? (
+                      <p className="rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-sm text-white/45">
+                        No open positions. Act on advice above to paper-trade.
+                      </p>
+                    ) : (
+                      <ul className="flex flex-col gap-2">
+                        {book.portfolio.positions.map((p) => {
+                          const last = marks[p.symbol] ?? p.avgPrice;
+                          const value = p.shares * last;
+                          const upnl = (last / p.avgPrice - 1) * p.shares * p.avgPrice;
+                          return (
+                            <li
+                              key={p.symbol}
+                              className="flex items-center justify-between rounded-lg bg-white/3 px-3 py-2"
+                            >
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {p.symbol} <span className="text-white/40">{p.shares} sh</span>
+                                </div>
+                                <div className="text-[11px] text-white/40">
+                                  avg {formatPrice(p.avgPrice)} · {formatCompact(value)}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <span className={cn("font-mono text-sm", clsxSign(upnl))}>{formatMoney(upnl)}</span>
+                                <Button
+                                  size="xs"
+                                  variant="outline"
+                                  onClick={() => {
+                                    const q = run?.quotes.find((x) => x.symbol === p.symbol);
+                                    if (!q) return;
+                                    execute("SELL", q, p.shares, "Close position");
+                                  }}
+                                  disabled={!run?.quotes.find((x) => x.symbol === p.symbol)}
+                                >
+                                  Close
+                                </Button>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    <div>
+                      <div className="mb-2 text-[11px] tracking-wide text-white/40 uppercase">Recent fills</div>
+                      {book.portfolio.fills.length === 0 ? (
+                        <p className="text-sm text-white/40">No trades yet.</p>
+                      ) : (
+                        <ul className="flex max-h-40 flex-col gap-1.5 overflow-auto text-sm">
+                          {book.portfolio.fills.slice(0, 12).map((f) => (
+                            <li key={f.id} className="flex justify-between gap-3 text-white/65">
+                              <span>
+                                <span className={f.side === "BUY" ? "text-emerald-400" : "text-rose-400"}>
+                                  {f.side}
+                                </span>{" "}
+                                {f.shares} {f.symbol}
+                              </span>
+                              <span className="font-mono text-white/50">{formatPrice(f.price)}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </section>
           </>
         )}
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-          <Card className="bg-[#10161d]">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Company forecasts</CardTitle>
-                <CardDescription>
-                  10-model ensemble · signals gated by 1-year backtest.
-                </CardDescription>
-              </div>
-              <Button
-                size="sm"
-                onClick={tradeAllSignals}
-                disabled={!run?.quotes.some((q) => q.liveReady && q.signal !== "HOLD")}
-              >
-                Trade verified signals
-              </Button>
-            </CardHeader>
-            <CardContent className="overflow-x-auto">
-              {(!run || run.quotes.length === 0) && !loading ? (
-                <p className="py-8 text-center text-sm text-white/45">
-                  Add a ticker and run the model to see targets and trade signals.
-                </p>
-              ) : (
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="text-[11px] tracking-wide text-white/40 uppercase">
-                    <tr className="border-b border-white/8">
-                      <th className="py-2 pr-3 font-medium">Name</th>
-                      <th className="py-2 pr-3 font-medium">Last</th>
-                      <th className="py-2 pr-3 font-medium">Target</th>
-                      <th className="py-2 pr-3 font-medium">Exp.</th>
-                      <th className="py-2 pr-3 font-medium">Signal</th>
-                      <th className="py-2 pr-3 font-medium">1y BT</th>
-                      <th className="py-2 pr-3 font-medium">Sharpe</th>
-                      <th className="py-2 font-medium" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(run?.quotes ?? []).map((q) => (
-                      <tr
-                        key={q.symbol}
-                        className={cn(
-                          "border-b border-white/6 last:border-0",
-                          q.symbol === active && "bg-white/3"
-                        )}
-                      >
-                        <td className="py-2.5 pr-3">
-                          <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
-                            <div className="font-medium">{q.symbol}</div>
-                            <div className="text-[11px] text-white/40">{q.name}</div>
-                          </button>
-                        </td>
-                        <td className="py-2.5 pr-3 font-mono">{formatPrice(q.last)}</td>
-                        <td className="py-2.5 pr-3 font-mono">{formatPrice(q.targetPrice)}</td>
-                        <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.expectedReturn))}>
-                          {formatPct(q.expectedReturn)}
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
-                            {q.signal}
-                          </span>
-                          {q.rawSignal !== q.signal && (
-                            <span className="ml-1 text-[10px] text-white/35">({q.rawSignal})</span>
-                          )}
-                        </td>
-                        <td className="py-2.5 pr-3">
-                          <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
-                            {q.liveReady ? "Pass" : "Fail"}
-                          </span>
-                        </td>
-                        <td className="py-2.5 pr-3 font-mono text-white/60">{q.backtest.sharpe.toFixed(2)}</td>
-                        <td className="py-2.5 text-right">
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            disabled={q.signal === "HOLD" || !q.liveReady}
-                            onClick={() => tradeSignal(q)}
-                          >
-                            Trade
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="bg-[#10161d]">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Wallet className="size-4 text-white/50" /> Paper book
-                </CardTitle>
-                <CardDescription>Fills are local to this browser. $100k starting cash.</CardDescription>
-              </div>
-              <Button size="sm" variant="ghost" onClick={book.reset}>
-                <RotateCcw /> Reset
-              </Button>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {book.portfolio.positions.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-sm text-white/45">
-                  No open positions. Run a forecast and execute a BUY signal, or size a trade on the right.
-                </p>
-              ) : (
-                <ul className="flex flex-col gap-2">
-                  {book.portfolio.positions.map((p) => {
-                    const last = marks[p.symbol] ?? p.avgPrice;
-                    const value = p.shares * last;
-                    const upnl = (last / p.avgPrice - 1) * p.shares * p.avgPrice;
-                    return (
-                      <li
-                        key={p.symbol}
-                        className="flex items-center justify-between rounded-lg bg-white/3 px-3 py-2"
-                      >
-                        <div>
-                          <div className="text-sm font-medium">
-                            {p.symbol}{" "}
-                            <span className="text-white/40">{p.shares} sh</span>
-                          </div>
-                          <div className="text-[11px] text-white/40">
-                            avg {formatPrice(p.avgPrice)} · {formatCompact(value)}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <span className={cn("font-mono text-sm", clsxSign(upnl))}>{formatMoney(upnl)}</span>
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            onClick={() => {
-                              const q = run?.quotes.find((x) => x.symbol === p.symbol);
-                              if (!q) return;
-                              execute("SELL", q, p.shares, "Close position");
-                            }}
-                            disabled={!run?.quotes.find((x) => x.symbol === p.symbol)}
-                          >
-                            Close
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-
-              <div>
-                <div className="mb-2 text-[11px] tracking-wide text-white/40 uppercase">Recent fills</div>
-                {book.portfolio.fills.length === 0 ? (
-                  <p className="text-sm text-white/40">No trades yet.</p>
-                ) : (
-                  <ul className="flex max-h-48 flex-col gap-1.5 overflow-auto text-sm">
-                    {book.portfolio.fills.slice(0, 12).map((f) => (
-                      <li key={f.id} className="flex justify-between gap-3 text-white/65">
-                        <span>
-                          <span className={f.side === "BUY" ? "text-emerald-400" : "text-rose-400"}>
-                            {f.side}
-                          </span>{" "}
-                          {f.shares} {f.symbol}
-                        </span>
-                        <span className="font-mono text-white/50">{formatPrice(f.price)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="bg-[#10161d]">
-          <CardHeader>
-            <CardTitle className="text-base">Quant model stack</CardTitle>
-            <CardDescription>
-              Institutional-style models used at tier-1 desks — blended by walk-forward RMSE.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
-              {MODEL_CATALOG.map((m) => (
-                <div key={m.id} className="rounded-lg border border-white/8 bg-white/2 px-3 py-2.5">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <div className="text-[10px] tracking-wide text-sky-300/80 uppercase">{m.id}</div>
-                    <div className="text-[10px] text-white/35">{m.category}</div>
-                  </div>
-                  <div className="text-sm font-medium leading-snug">{m.label}</div>
-                  <p className="mt-1 text-[11px] leading-relaxed text-white/50">{m.description}</p>
-                  <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-sky-300/65">{m.formula}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <p className="pb-4 text-center text-[11px] leading-relaxed text-white/35">
-          Each ticker must pass a 1-year long-only backtest (direction ≥48%, Sharpe ≥0.10, max DD ≤35%, ≥2
-          round-trips) before automated signals fire. Run <code className="text-white/50">npm test</code> for
-          self-verification. Educational only — not investment advice.
+        <p className="pb-6 text-center text-[11px] leading-relaxed text-white/35">
+          Flow: observe market data → inspect ensemble models → act on gated advice. Educational paper trading
+          only — not investment advice.
         </p>
       </main>
+    </div>
+  );
+}
+
+function StageHeading({
+  step,
+  icon,
+  title,
+  subtitle,
+}: {
+  step: string;
+  icon: ReactNode;
+  title: string;
+  subtitle: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 border-b border-white/8 pb-3">
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/5 text-sky-300 ring-1 ring-white/10">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className="text-[10px] tracking-[0.18em] text-white/35 uppercase">Step {step}</div>
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        <p className="text-sm text-white/45">{subtitle}</p>
+      </div>
     </div>
   );
 }

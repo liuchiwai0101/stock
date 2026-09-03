@@ -48,7 +48,7 @@ export function ForecastChart({ quote }: { quote: CompanyForecast }) {
   const yMax = Math.max(...rows.flatMap((r) => [r.close, r.hi, r.forecast].filter((v): v is number => v != null))) * 1.015;
 
   return (
-    <div className="h-[320px] w-full sm:h-[380px]">
+    <div className="h-[360px] w-full sm:h-[440px]">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
