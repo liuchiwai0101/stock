@@ -54,7 +54,11 @@ export function AppNav({
             })}
           </nav>
         </div>
-        {right ? <div className="flex items-center gap-6">{right}</div> : null}
+        {right ? (
+          <div className="flex w-full items-center justify-between gap-3 overflow-x-auto text-right sm:w-auto sm:justify-end sm:gap-6">
+            {right}
+          </div>
+        ) : null}
       </div>
     </header>
   );
