@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +44,7 @@ export function StockSummaryTable({
   onTrade: (q: CompanyForecast) => void;
   onTradeAll: () => void;
 }) {
+  const [expanded, setExpanded] = useState<string | null>(null);
   const tradable = quotes.some((q) => q.liveReady && q.signal !== "HOLD");
   const modelCols = useMemo(() => {
     const present = new Set(quotes.flatMap((q) => (q.models ?? []).map((m) => m.id)));
@@ -51,7 +52,15 @@ export function StockSummaryTable({
     return MODEL_COLUMNS.filter((c) => present.has(c.id));
   }, [quotes]);
   const colCount = 6 + modelCols.length;
-  const activeQuote = quotes.find((q) => q.symbol === active) ?? null;
+
+  function toggleRow(symbol: string) {
+    if (expanded === symbol) {
+      setExpanded(null);
+      return;
+    }
+    setExpanded(symbol);
+    onSelect(symbol);
+  }
 
   return (
     <Card className="bg-[#10161d]">
@@ -59,7 +68,7 @@ export function StockSummaryTable({
         <div>
           <CardTitle className="text-base">All stocks × models</CardTitle>
           <CardDescription>
-            Select a row to show its forecast chart under the table
+            Charts start collapsed — tap a row to expand or collapse
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
@@ -87,113 +96,116 @@ export function StockSummaryTable({
               </tr>
             </thead>
             <tbody>
-              {quotes.map((q) => (
-                <Fragment key={q.symbol}>
-                  <tr
-                    className={cn(
-                      "border-b border-white/6",
-                      q.symbol === active && "bg-white/3",
-                      q.symbol !== active && "last:border-0",
-                    )}
-                    onClick={() => onSelect(q.symbol)}
-                  >
-                    <td
+              {quotes.map((q) => {
+                const isOpen = expanded === q.symbol;
+                return (
+                  <Fragment key={q.symbol}>
+                    <tr
                       className={cn(
-                        "sticky left-0 z-10 py-2.5 pr-3",
-                        q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
+                        "cursor-pointer border-b border-white/6",
+                        (isOpen || q.symbol === active) && "bg-white/3",
                       )}
+                      onClick={() => toggleRow(q.symbol)}
                     >
-                      <button type="button" onClick={() => onSelect(q.symbol)} className="text-left">
-                        <div className="font-medium">{q.symbol}</div>
-                        <div className="max-w-[110px] truncate text-[11px] text-white/40">{q.name}</div>
-                      </button>
-                    </td>
-                    <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
-                      {formatPrice(q.last)}
-                      <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
-                    </td>
-                    <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
-                      {formatPrice(q.targetPrice)}
-                      <div className={cn("text-[11px]", clsxSign(q.expectedReturn))}>
-                        {formatPct(q.expectedReturn)}
-                      </div>
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
-                        {q.signal}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
-                        {q.liveReady ? "Pass" : "Fail"}
-                      </span>
-                    </td>
-                    {modelCols.map((c) => {
-                      const m = modelSuggestion(q, c.id);
-                      if (!m) {
-                        return (
-                          <td key={c.id} className="py-2.5 pr-3 font-mono text-white/30">
-                            —
-                          </td>
-                        );
-                      }
-                      return (
-                        <td
-                          key={c.id}
-                          className="py-2.5 pr-3 font-mono whitespace-nowrap"
-                          title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
-                        >
-                          <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
-                          <div className="text-[10px] text-white/35">{formatPrice(m.targetPrice)}</div>
-                        </td>
-                      );
-                    })}
-                    <td className="py-2.5 text-right">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        disabled={q.signal === "HOLD" || !q.liveReady}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onTrade(q);
-                        }}
+                      <td
+                        className={cn(
+                          "sticky left-0 z-10 py-2.5 pr-3",
+                          isOpen || q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
+                        )}
                       >
-                        Trade
-                      </Button>
-                    </td>
-                  </tr>
-                  {q.symbol === active && activeQuote ? (
-                    <tr className="border-b border-white/6 last:border-0 bg-white/[0.02]">
-                      <td colSpan={colCount} className="p-0">
-                        <div className="w-full px-2 pt-2 pb-3 sm:px-3">
-                          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
-                            <div className="text-xs text-white/55">
-                              <span className="font-medium text-white/80">{activeQuote.symbol}</span>
-                              {" · "}
-                              {formatPrice(activeQuote.last)}
-                              {" · "}
-                              <span className={clsxSign(activeQuote.expectedReturn)}>
-                                {formatPct(activeQuote.expectedReturn)}
-                              </span>
-                              {" expected"}
-                              {!activeQuote.liveReady ? " · auto-trade blocked" : ""}
-                            </div>
-                            <span
-                              className={cn(
-                                "rounded-full border px-2 py-0.5 text-[11px]",
-                                signalClass(activeQuote.signal),
-                              )}
-                            >
-                              {activeQuote.signal}
-                            </span>
+                        <button type="button" onClick={() => toggleRow(q.symbol)} className="text-left">
+                          <div className="font-medium">
+                            <span className="mr-1 inline-block w-3 text-white/35">{isOpen ? "▾" : "▸"}</span>
+                            {q.symbol}
                           </div>
-                          <ForecastChart quote={activeQuote} compact />
+                          <div className="max-w-[110px] truncate pl-4 text-[11px] text-white/40">{q.name}</div>
+                        </button>
+                      </td>
+                      <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
+                        {formatPrice(q.last)}
+                        <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
+                      </td>
+                      <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
+                        {formatPrice(q.targetPrice)}
+                        <div className={cn("text-[11px]", clsxSign(q.expectedReturn))}>
+                          {formatPct(q.expectedReturn)}
                         </div>
                       </td>
+                      <td className="py-2.5 pr-3">
+                        <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
+                          {q.signal}
+                        </span>
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
+                          {q.liveReady ? "Pass" : "Fail"}
+                        </span>
+                      </td>
+                      {modelCols.map((c) => {
+                        const m = modelSuggestion(q, c.id);
+                        if (!m) {
+                          return (
+                            <td key={c.id} className="py-2.5 pr-3 font-mono text-white/30">
+                              —
+                            </td>
+                          );
+                        }
+                        return (
+                          <td
+                            key={c.id}
+                            className="py-2.5 pr-3 font-mono whitespace-nowrap"
+                            title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
+                          >
+                            <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
+                            <div className="text-[10px] text-white/35">{formatPrice(m.targetPrice)}</div>
+                          </td>
+                        );
+                      })}
+                      <td className="py-2.5 text-right">
+                        <Button
+                          size="xs"
+                          variant="outline"
+                          disabled={q.signal === "HOLD" || !q.liveReady}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onTrade(q);
+                          }}
+                        >
+                          Trade
+                        </Button>
+                      </td>
                     </tr>
-                  ) : null}
-                </Fragment>
-              ))}
+                    {isOpen ? (
+                      <tr className="border-b border-white/6 last:border-0 bg-white/[0.02]">
+                        <td colSpan={colCount} className="p-0">
+                          <div className="w-full px-2 pt-2 pb-3 sm:px-3">
+                            <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
+                              <div className="text-xs text-white/55">
+                                <span className="font-medium text-white/80">{q.symbol}</span>
+                                {" · "}
+                                {formatPrice(q.last)}
+                                {" · "}
+                                <span className={clsxSign(q.expectedReturn)}>{formatPct(q.expectedReturn)}</span>
+                                {" expected"}
+                                {!q.liveReady ? " · auto-trade blocked" : ""}
+                              </div>
+                              <span
+                                className={cn(
+                                  "rounded-full border px-2 py-0.5 text-[11px]",
+                                  signalClass(q.signal),
+                                )}
+                              >
+                                {q.signal}
+                              </span>
+                            </div>
+                            <ForecastChart quote={q} compact />
+                          </div>
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}
