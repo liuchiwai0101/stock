@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
+import { ForecastChart } from "@/components/forecast-chart";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
@@ -49,6 +50,8 @@ export function StockSummaryTable({
     if (present.size === 0) return MODEL_COLUMNS;
     return MODEL_COLUMNS.filter((c) => present.has(c.id));
   }, [quotes]);
+  const colCount = 6 + modelCols.length;
+  const activeQuote = quotes.find((q) => q.symbol === active) ?? null;
 
   return (
     <Card className="bg-[#10161d]">
@@ -56,7 +59,7 @@ export function StockSummaryTable({
         <div>
           <CardTitle className="text-base">All stocks × models</CardTitle>
           <CardDescription>
-            Ensemble signal plus each model&apos;s expected return suggestion
+            Select a row to show its forecast chart under the table
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
@@ -85,75 +88,111 @@ export function StockSummaryTable({
             </thead>
             <tbody>
               {quotes.map((q) => (
-                <tr
-                  key={q.symbol}
-                  className={cn(
-                    "border-b border-white/6 last:border-0",
-                    q.symbol === active && "bg-white/3",
-                  )}
-                >
-                  <td
+                <Fragment key={q.symbol}>
+                  <tr
                     className={cn(
-                      "sticky left-0 z-10 py-2.5 pr-3",
-                      q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
+                      "border-b border-white/6",
+                      q.symbol === active && "bg-white/3",
+                      q.symbol !== active && "last:border-0",
                     )}
+                    onClick={() => onSelect(q.symbol)}
                   >
-                    <button type="button" onClick={() => onSelect(q.symbol)} className="text-left">
-                      <div className="font-medium">{q.symbol}</div>
-                      <div className="max-w-[110px] truncate text-[11px] text-white/40">{q.name}</div>
-                    </button>
-                  </td>
-                  <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
-                    {formatPrice(q.last)}
-                    <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
-                  </td>
-                  <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
-                    {formatPrice(q.targetPrice)}
-                    <div className={cn("text-[11px]", clsxSign(q.expectedReturn))}>
-                      {formatPct(q.expectedReturn)}
-                    </div>
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
-                      {q.signal}
-                    </span>
-                  </td>
-                  <td className="py-2.5 pr-3">
-                    <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
-                      {q.liveReady ? "Pass" : "Fail"}
-                    </span>
-                  </td>
-                  {modelCols.map((c) => {
-                    const m = modelSuggestion(q, c.id);
-                    if (!m) {
+                    <td
+                      className={cn(
+                        "sticky left-0 z-10 py-2.5 pr-3",
+                        q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
+                      )}
+                    >
+                      <button type="button" onClick={() => onSelect(q.symbol)} className="text-left">
+                        <div className="font-medium">{q.symbol}</div>
+                        <div className="max-w-[110px] truncate text-[11px] text-white/40">{q.name}</div>
+                      </button>
+                    </td>
+                    <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
+                      {formatPrice(q.last)}
+                      <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
+                    </td>
+                    <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
+                      {formatPrice(q.targetPrice)}
+                      <div className={cn("text-[11px]", clsxSign(q.expectedReturn))}>
+                        {formatPct(q.expectedReturn)}
+                      </div>
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
+                        {q.signal}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
+                        {q.liveReady ? "Pass" : "Fail"}
+                      </span>
+                    </td>
+                    {modelCols.map((c) => {
+                      const m = modelSuggestion(q, c.id);
+                      if (!m) {
+                        return (
+                          <td key={c.id} className="py-2.5 pr-3 font-mono text-white/30">
+                            —
+                          </td>
+                        );
+                      }
                       return (
-                        <td key={c.id} className="py-2.5 pr-3 font-mono text-white/30">
-                          —
+                        <td
+                          key={c.id}
+                          className="py-2.5 pr-3 font-mono whitespace-nowrap"
+                          title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
+                        >
+                          <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
+                          <div className="text-[10px] text-white/35">{formatPrice(m.targetPrice)}</div>
                         </td>
                       );
-                    }
-                    return (
-                      <td
-                        key={c.id}
-                        className="py-2.5 pr-3 font-mono whitespace-nowrap"
-                        title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
+                    })}
+                    <td className="py-2.5 text-right">
+                      <Button
+                        size="xs"
+                        variant="outline"
+                        disabled={q.signal === "HOLD" || !q.liveReady}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTrade(q);
+                        }}
                       >
-                        <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
-                        <div className="text-[10px] text-white/35">{formatPrice(m.targetPrice)}</div>
+                        Trade
+                      </Button>
+                    </td>
+                  </tr>
+                  {q.symbol === active && activeQuote ? (
+                    <tr className="border-b border-white/6 last:border-0 bg-white/[0.02]">
+                      <td colSpan={colCount} className="p-0">
+                        <div className="w-full px-2 pt-2 pb-3 sm:px-3">
+                          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
+                            <div className="text-xs text-white/55">
+                              <span className="font-medium text-white/80">{activeQuote.symbol}</span>
+                              {" · "}
+                              {formatPrice(activeQuote.last)}
+                              {" · "}
+                              <span className={clsxSign(activeQuote.expectedReturn)}>
+                                {formatPct(activeQuote.expectedReturn)}
+                              </span>
+                              {" expected"}
+                              {!activeQuote.liveReady ? " · auto-trade blocked" : ""}
+                            </div>
+                            <span
+                              className={cn(
+                                "rounded-full border px-2 py-0.5 text-[11px]",
+                                signalClass(activeQuote.signal),
+                              )}
+                            >
+                              {activeQuote.signal}
+                            </span>
+                          </div>
+                          <ForecastChart quote={activeQuote} compact />
+                        </div>
                       </td>
-                    );
-                  })}
-                  <td className="py-2.5 text-right">
-                    <Button
-                      size="xs"
-                      variant="outline"
-                      disabled={q.signal === "HOLD" || !q.liveReady}
-                      onClick={() => onTrade(q)}
-                    >
-                      Trade
-                    </Button>
-                  </td>
-                </tr>
+                    </tr>
+                  ) : null}
+                </Fragment>
               ))}
             </tbody>
           </table>

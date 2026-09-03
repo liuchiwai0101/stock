@@ -2,29 +2,18 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowDownRight,
-  ArrowUpRight,
-  LoaderCircle,
-  RotateCcw,
-  Search,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { LoaderCircle, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
-import { ForecastChart } from "@/components/forecast-chart";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { usePortfolio } from "@/hooks/use-portfolio";
-import { clsxSign, formatCompact, formatMoney, formatPct, formatPrice } from "@/lib/format";
+import { clsxSign, formatMoney, formatPct } from "@/lib/format";
 import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
-import type { CompanyForecast, Horizon, RunResponse, TradeSignal } from "@/lib/types";
+import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
@@ -36,12 +25,6 @@ const HORIZONS: { value: Horizon; label: string }[] = [
 ];
 
 type SearchHit = { symbol: string; name: string; type: string };
-
-function signalClass(signal: TradeSignal): string {
-  if (signal === "BUY") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/20";
-  if (signal === "SELL") return "bg-rose-500/15 text-rose-300 border-rose-500/20";
-  return "bg-white/5 text-white/60 border-white/10";
-}
 
 export function Dashboard() {
   const defaults = defaultSelection();
@@ -55,7 +38,6 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [shareOverride, setShareOverride] = useState<Record<string, number>>({});
   const searchRef = useRef<HTMLDivElement>(null);
   const requestSeq = useRef(0);
 
@@ -67,10 +49,6 @@ export function Dashboard() {
 
   const book = usePortfolio(marks);
   const quote = run?.quotes.find((q) => q.symbol === active) ?? run?.quotes[0] ?? null;
-  const recommendedShares = quote
-    ? Math.max(1, sharesForWeight(book.equity, quote.last, quote.recommendedWeight) || 10)
-    : 10;
-  const shares = quote ? (shareOverride[quote.symbol] ?? recommendedShares) : recommendedShares;
   const visibleHits = query.trim() ? hits : [];
 
   const load = useCallback(async (nextSymbols: string[], nextHorizon: Horizon) => {
@@ -175,17 +153,6 @@ export function Dashboard() {
       const next = prev.filter((s) => s !== symbol);
       if (symbol === active && next[0]) setActive(next[0]);
       return next;
-    });
-  }
-
-  function execute(side: "BUY" | "SELL", q: CompanyForecast, count: number, note: string) {
-    book.trade({
-      symbol: q.symbol,
-      name: q.name,
-      side,
-      shares: count,
-      price: q.last,
-      note,
     });
   }
 
@@ -397,7 +364,7 @@ export function Dashboard() {
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Suggestions</h2>
                 <p className="text-sm text-white/45">
-                  Each stock with ensemble and per-model suggestion values — select a row for chart and trade.
+                  Stocks with per-model suggestions — select a row to expand its chart in the table.
                 </p>
               </div>
 
@@ -408,136 +375,6 @@ export function Dashboard() {
                 onTrade={tradeSignal}
                 onTradeAll={tradeAllSignals}
               />
-
-              <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr]">
-                <Card className="bg-[#10161d]">
-                  <CardHeader className="border-b border-white/6 pb-3">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-xl">
-                          {quote.symbol}{" "}
-                          <span className="text-base font-normal text-white/40">{quote.name}</span>
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          {formatPrice(quote.last)} · {formatPct(quote.expectedReturn)} expected ·{" "}
-                          {quote.liveReady ? "backtest pass" : "auto-trade blocked"}
-                        </CardDescription>
-                      </div>
-                      <Badge className={cn("px-3 py-1", signalClass(quote.signal))} variant="outline">
-                        {quote.signal}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-3">
-                    <ForecastChart quote={quote} />
-                  </CardContent>
-                </Card>
-
-                <div className="flex flex-col gap-4">
-                  <Card className="bg-[#10161d]">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-base">Trade</CardTitle>
-                      <CardDescription>
-                        {shares} sh · {formatMoney(shares * quote.last)}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <Slider
-                        min={1}
-                        max={Math.max(20, sharesForWeight(book.equity, quote.last, 0.35))}
-                        value={[shares]}
-                        onValueChange={(v) => {
-                          const next = Array.isArray(v) ? Math.round(Number(v[0])) : Math.round(Number(v));
-                          setShareOverride((prev) => ({ ...prev, [quote.symbol]: Math.max(1, next) }));
-                        }}
-                      />
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          className="bg-emerald-500 text-emerald-950 hover:bg-emerald-400"
-                          onClick={() =>
-                            execute("BUY", quote, shares, `Manual buy · target ${formatPrice(quote.targetPrice)}`)
-                          }
-                        >
-                          <ArrowUpRight /> Buy
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={() =>
-                            execute("SELL", quote, shares, `Manual sell · target ${formatPrice(quote.targetPrice)}`)
-                          }
-                        >
-                          <ArrowDownRight /> Sell
-                        </Button>
-                      </div>
-                      <Button
-                        variant="secondary"
-                        className="w-full"
-                        onClick={() => tradeSignal(quote)}
-                        disabled={quote.signal === "HOLD" || !quote.liveReady}
-                      >
-                        Execute {quote.signal}
-                      </Button>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="bg-[#10161d]">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                      <div>
-                        <CardTitle className="text-base">Positions</CardTitle>
-                        <CardDescription>Paper book</CardDescription>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={book.reset}>
-                        <RotateCcw />
-                      </Button>
-                    </CardHeader>
-                    <CardContent>
-                      {book.portfolio.positions.length === 0 ? (
-                        <p className="text-sm text-white/45">No open lots.</p>
-                      ) : (
-                        <ul className="flex flex-col gap-2">
-                          {book.portfolio.positions.map((p) => {
-                            const last = marks[p.symbol] ?? p.avgPrice;
-                            const upnl = (last / p.avgPrice - 1) * p.shares * p.avgPrice;
-                            return (
-                              <li
-                                key={p.symbol}
-                                className="flex items-center justify-between rounded-lg bg-white/3 px-3 py-2"
-                              >
-                                <div>
-                                  <div className="text-sm font-medium">
-                                    {p.symbol}{" "}
-                                    <span className="text-white/40">{p.shares}</span>
-                                  </div>
-                                  <div className="text-[11px] text-white/40">
-                                    {formatCompact(p.shares * last)}
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className={cn("font-mono text-sm", clsxSign(upnl))}>
-                                    {formatMoney(upnl)}
-                                  </span>
-                                  <Button
-                                    size="xs"
-                                    variant="outline"
-                                    onClick={() => {
-                                      const q = run?.quotes.find((x) => x.symbol === p.symbol);
-                                      if (!q) return;
-                                      execute("SELL", q, p.shares, "Close position");
-                                    }}
-                                    disabled={!run?.quotes.find((x) => x.symbol === p.symbol)}
-                                  >
-                                    Close
-                                  </Button>
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </div>
             </section>
 
             <section className="space-y-3">

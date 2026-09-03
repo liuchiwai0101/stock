@@ -23,7 +23,13 @@ type Row = {
   band?: number;
 };
 
-export function ForecastChart({ quote }: { quote: CompanyForecast }) {
+export function ForecastChart({
+  quote,
+  compact = false,
+}: {
+  quote: CompanyForecast;
+  compact?: boolean;
+}) {
   const lastBar = quote.history[quote.history.length - 1];
   const rows: Row[] = [
     ...quote.history.map((b) => ({ date: b.date, close: b.close })),
@@ -48,7 +54,7 @@ export function ForecastChart({ quote }: { quote: CompanyForecast }) {
   const yMax = Math.max(...rows.flatMap((r) => [r.close, r.hi, r.forecast].filter((v): v is number => v != null))) * 1.015;
 
   return (
-    <div className="h-[280px] w-full sm:h-[320px]">
+    <div className={compact ? "h-[200px] w-full sm:h-[220px]" : "h-[280px] w-full sm:h-[320px]"}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
