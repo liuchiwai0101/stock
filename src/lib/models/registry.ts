@@ -20,6 +20,7 @@ export type ModelSpec = {
   label: string;
   category: string;
   description: string;
+  purpose: string;
   formula: string;
   predict: ModelPredict;
 };
@@ -241,6 +242,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "Holt linear trend",
     category: "Exponential smoothing",
     description: "Double exponential smoothing on log prices with level + trend; grid-searches α, β.",
+    purpose:
+      "Use when price has a smooth directional trend. Captures persistent drifts without overreacting to single-day noise.",
     formula: "L_t = α y_t + (1−α)(L_{t−1}+T_{t−1});  T_t = β(L_t−L_{t−1}) + (1−β)T_{t−1}",
     predict: (c, h) => holtForecast(logPrices(c), h),
   },
@@ -249,6 +252,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "OLS log-price regression",
     category: "Factor regression",
     description: "Ordinary least squares of log price on time; extrapolates the fitted line.",
+    purpose:
+      "Use as a baseline long-horizon drift estimate. Anchors the ensemble to the average historical growth rate.",
     formula: "log P_t = a + b·t + ε_t → ŷ_{t+h} = a + b·(t+h)",
     predict: (c, h) => olsForecast(logPrices(c), h),
   },
@@ -257,6 +262,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "AR(1) return model",
     category: "Time series",
     description: "First-order autoregression on daily log returns with estimated mean and φ.",
+    purpose:
+      "Use when yesterday’s return partially predicts today’s. Models short-term continuation or mild mean reversion in returns.",
     formula: "r_t = μ + φ(r_{t−1}−μ) + ε_t;  P path via cumulative exp(r̂)",
     predict: ar1Path,
   },
@@ -265,6 +272,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "Cross-sectional momentum",
     category: "Quant factor",
     description: "20/50 SMA trend filter plus 63-day average drift; clamped for stability.",
+    purpose:
+      "Use to follow medium-term trend following. Favors names still above their moving averages with positive multi-week drift.",
     formula: "drift = f(SMA20 ≷ SMA50, log(P_t/P_{t−63})/63)",
     predict: momentumPath,
   },
@@ -273,6 +282,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "GARCH(1,1) vol forecast",
     category: "Volatility modeling",
     description: "Conditional variance with mean drift; path uses μ − ½σ² adjustment.",
+    purpose:
+      "Use when volatility is changing. Adjusts expected path for risk (μ − ½σ²) so high-vol regimes don’t inflate naive returns.",
     formula: "σ²_t = ω + α ε²_{t−1} + β σ²_{t−1};  E[r] = μ − ½σ²",
     predict: garchPath,
   },
@@ -281,6 +292,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "Kalman local trend",
     category: "State-space",
     description: "Local linear trend state-space filter; recursively updates level and slope.",
+    purpose:
+      "Use when the trend itself is evolving. Filters noisy prices into a live level/slope estimate that adapts as regimes shift.",
     formula: "x_t = [level, trend];  x_{t|t} = x_{t|t−1} + K·innovation",
     predict: kalmanPath,
   },
@@ -289,6 +302,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "ARIMA(1,1,0)",
     category: "Time series",
     description: "Integrated AR(1) on first differences of log prices (random-walk with drift + AR).",
+    purpose:
+      "Use for differenced series that are closer to stationary. Models incremental price changes with a classic desk ARIMA baseline.",
     formula: "Δy_t = μ + φ(Δy_{t−1}−μ) + ε_t;  ŷ_{t+h} = y_t + Σ Δŷ",
     predict: arimaPath,
   },
@@ -297,6 +312,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "Ornstein–Uhlenbeck MR",
     category: "Mean reversion",
     description: "Mean-reverting diffusion of log price toward a long-run mean (120-day).",
+    purpose:
+      "Use when price looks stretched vs its longer average. Pulls forecasts back toward fair value after large deviations.",
     formula: "dx = θ(μ − x) dt;  discrete: x ← x + θ(μ − x)",
     predict: ouPath,
   },
@@ -305,6 +322,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "RiskMetrics EWMA",
     category: "Risk parity",
     description: "JPMorgan RiskMetrics-style exponentially weighted return & variance (λ=0.94).",
+    purpose:
+      "Use for risk-aware short-horizon forecasts. Emphasizes recent returns/vol the way RiskMetrics desks size risk.",
     formula: "σ²_t = λ σ²_{t−1} + (1−λ)r²_t;  drift = μ̂_EWMA − ½σ²",
     predict: ewmaPath,
   },
@@ -313,6 +332,8 @@ export const MODEL_REGISTRY: ModelSpec[] = [
     label: "Vol regime switch",
     category: "Regime detection",
     description: "Blends momentum (low vol) and OU mean reversion (high vol) by short/long vol ratio.",
+    purpose:
+      "Use to adapt strategy to market climate. Follows trend in calm markets and leans mean-reverting when vol spikes.",
     formula: "w = clamp(1.2 − σ_short/σ_long);  path = w·mom + (1−w)·OU",
     predict: regimePath,
   },
@@ -325,6 +346,7 @@ export type ModelBreakdown = {
   label: string;
   category: string;
   description: string;
+  purpose: string;
   formula: string;
   weight: number;
   rmse: number;
@@ -389,6 +411,7 @@ export function fitEnsemble(closes: number[], horizon: number): {
       label: m.label,
       category: m.category,
       description: m.description,
+      purpose: m.purpose,
       formula: m.formula,
       weight: weightArr[i],
       rmse: scores[i].rmse,

@@ -512,7 +512,9 @@ export function Dashboard() {
               <Card className="bg-[#10161d]">
                 <CardHeader>
                   <CardTitle className="text-base">Model reference</CardTitle>
-                  <CardDescription>What each component estimates and how</CardDescription>
+                  <CardDescription>
+                    What each model does, when to use it, and the core formula
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-2 md:grid-cols-2">
@@ -524,6 +526,10 @@ export function Dashboard() {
                         </div>
                         <div className="text-sm font-medium leading-snug">{m.label}</div>
                         <p className="mt-1 text-[11px] leading-relaxed text-white/50">{m.description}</p>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-300/75">
+                          <span className="font-medium text-emerald-300/90">Purpose: </span>
+                          {m.purpose}
+                        </p>
                         <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-sky-300/65">{m.formula}</p>
                       </div>
                     ))}

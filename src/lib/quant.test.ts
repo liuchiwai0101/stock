@@ -56,7 +56,7 @@ describe("institutional models", () => {
     expect(logPath).toHaveLength(21);
     expect(models).toHaveLength(10);
     expect(models[0].weight).toBeGreaterThanOrEqual(models[9].weight);
-    expect(models.every((m) => m.description.length > 10 && m.formula.length > 5)).toBe(true);
+    expect(models.every((m) => m.description.length > 10 && m.purpose.length > 10 && m.formula.length > 5)).toBe(true);
   });
 });
 

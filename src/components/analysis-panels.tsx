@@ -215,6 +215,10 @@ export function ModelResultsTable({
                 </Badge>
               </div>
               <p className="text-[11px] leading-relaxed text-white/55">{m.description}</p>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-300/75">
+                <span className="font-medium text-emerald-300/90">Purpose: </span>
+                {m.purpose}
+              </p>
               <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-sky-300/70">{m.formula}</p>
             </div>
           ))}

@@ -37,6 +37,7 @@ export type ModelBreakdown = {
   label: string;
   category: string;
   description: string;
+  purpose: string;
   formula: string;
   weight: number;
   rmse: number;
