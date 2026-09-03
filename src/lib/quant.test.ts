@@ -50,10 +50,13 @@ describe("institutional models", () => {
     });
   }
 
-  it("ensemble produces weighted path", () => {
-    const { weights, logPath } = fitEnsemble(closes, 21);
+  it("ensemble produces weighted path and per-model breakdown", () => {
+    const { weights, logPath, models } = fitEnsemble(closes, 21);
     expect(Object.values(weights).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 5);
     expect(logPath).toHaveLength(21);
+    expect(models).toHaveLength(10);
+    expect(models[0].weight).toBeGreaterThanOrEqual(models[9].weight);
+    expect(models.every((m) => m.description.length > 10 && m.formula.length > 5)).toBe(true);
   });
 });
 
@@ -88,6 +91,8 @@ describe("forecast pipeline", () => {
     const f = runForecast(series, 21);
     expect(f.forecast).toHaveLength(21);
     expect(f.weights.garch).toBeGreaterThanOrEqual(0);
+    expect(f.models).toHaveLength(10);
+    expect(f.models[0].targetPrice).toBeGreaterThan(0);
     expect(f.backtest.periodDays).toBe(252);
     if (!f.liveReady) expect(f.signal).toBe("HOLD");
   });

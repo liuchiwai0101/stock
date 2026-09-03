@@ -4,4 +4,6 @@ export const MODEL_CATALOG = MODEL_REGISTRY.map((m) => ({
   id: m.id,
   label: m.label,
   category: m.category,
+  description: m.description,
+  formula: m.formula,
 }));

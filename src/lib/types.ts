@@ -32,6 +32,20 @@ export type ModelId =
 
 export type ModelWeights = Record<ModelId, number>;
 
+export type ModelBreakdown = {
+  id: ModelId;
+  label: string;
+  category: string;
+  description: string;
+  formula: string;
+  weight: number;
+  rmse: number;
+  mape: number;
+  hitRate: number;
+  targetPrice: number;
+  expectedReturn: number;
+};
+
 export type ModelMetrics = {
   rmse: number;
   mape: number;
@@ -99,6 +113,7 @@ export type CompanyForecast = {
   liveReady: boolean;
   metrics: ModelMetrics;
   weights: ModelWeights;
+  models: ModelBreakdown[];
   backtest: BacktestResult;
   rationale: string;
 };

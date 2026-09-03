@@ -69,7 +69,7 @@ export function runForecast(series: QuoteSeries, horizon: Horizon): CompanyForec
     throw new Error(`Not enough history for ${series.symbol} (need 120+ days)`);
   }
 
-  const { weights, logPath, metrics: wfMetrics } = fitEnsemble(closes, horizon);
+  const { weights, logPath, metrics: wfMetrics, models } = fitEnsemble(closes, horizon);
   const backtest = runBacktest(closes, dates, horizon);
 
   const last = Math.round(closes[closes.length - 1] * 100) / 100;
@@ -128,6 +128,7 @@ export function runForecast(series: QuoteSeries, horizon: Horizon): CompanyForec
     liveReady,
     metrics,
     weights,
+    models,
     backtest,
     rationale: rationale(signal, liveReady, weights, expectedReturn, backtest.summary),
   };

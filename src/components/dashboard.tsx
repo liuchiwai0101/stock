@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { ForecastChart } from "@/components/forecast-chart";
-import { BacktestPanel, Metric, ModelWeightsPanel } from "@/components/analysis-panels";
+import { BacktestPanel, Metric, ModelResultsTable, ModelWeightsPanel } from "@/components/analysis-panels";
 import { VerificationBanner } from "@/components/verification-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -379,6 +379,7 @@ export function Dashboard() {
         )}
 
         {quote && (
+          <>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
             <Card className="bg-[#10161d]">
               <CardHeader className="border-b border-white/6">
@@ -513,6 +514,13 @@ export function Dashboard() {
               </CardContent>
             </Card>
           </div>
+
+          <ModelResultsTable
+            models={quote.models}
+            last={quote.last}
+            ensembleTarget={quote.targetPrice}
+          />
+          </>
         )}
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
@@ -693,12 +701,16 @@ export function Dashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-2">
               {MODEL_CATALOG.map((m) => (
-                <div key={m.id} className="rounded-lg border border-white/8 bg-white/2 px-2.5 py-2">
-                  <div className="text-[10px] tracking-wide text-sky-300/80 uppercase">{m.id}</div>
-                  <div className="text-xs font-medium leading-snug">{m.label}</div>
-                  <div className="text-[10px] text-white/40">{m.category}</div>
+                <div key={m.id} className="rounded-lg border border-white/8 bg-white/2 px-3 py-2.5">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <div className="text-[10px] tracking-wide text-sky-300/80 uppercase">{m.id}</div>
+                    <div className="text-[10px] text-white/35">{m.category}</div>
+                  </div>
+                  <div className="text-sm font-medium leading-snug">{m.label}</div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-white/50">{m.description}</p>
+                  <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-sky-300/65">{m.formula}</p>
                 </div>
               ))}
             </div>

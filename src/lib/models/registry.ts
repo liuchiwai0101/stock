@@ -19,6 +19,8 @@ export type ModelSpec = {
   id: ModelId;
   label: string;
   category: string;
+  description: string;
+  formula: string;
   predict: ModelPredict;
 };
 
@@ -234,19 +236,103 @@ function regimePath(closes: number[], horizon: number): number[] {
 }
 
 export const MODEL_REGISTRY: ModelSpec[] = [
-  { id: "holt", label: "Holt linear trend", category: "Exponential smoothing", predict: (c, h) => holtForecast(logPrices(c), h) },
-  { id: "ols", label: "OLS log-price regression", category: "Factor regression", predict: (c, h) => olsForecast(logPrices(c), h) },
-  { id: "ar1", label: "AR(1) return model", category: "Time series", predict: ar1Path },
-  { id: "momentum", label: "Cross-sectional momentum", category: "Quant factor", predict: momentumPath },
-  { id: "garch", label: "GARCH(1,1) vol forecast", category: "Volatility modeling", predict: garchPath },
-  { id: "kalman", label: "Kalman local trend", category: "State-space", predict: kalmanPath },
-  { id: "arima", label: "ARIMA(1,1,0)", category: "Time series", predict: arimaPath },
-  { id: "ou", label: "Ornstein–Uhlenbeck MR", category: "Mean reversion", predict: ouPath },
-  { id: "ewma", label: "RiskMetrics EWMA", category: "Risk parity", predict: ewmaPath },
-  { id: "regime", label: "Vol regime switch", category: "Regime detection", predict: regimePath },
+  {
+    id: "holt",
+    label: "Holt linear trend",
+    category: "Exponential smoothing",
+    description: "Double exponential smoothing on log prices with level + trend; grid-searches α, β.",
+    formula: "L_t = α y_t + (1−α)(L_{t−1}+T_{t−1});  T_t = β(L_t−L_{t−1}) + (1−β)T_{t−1}",
+    predict: (c, h) => holtForecast(logPrices(c), h),
+  },
+  {
+    id: "ols",
+    label: "OLS log-price regression",
+    category: "Factor regression",
+    description: "Ordinary least squares of log price on time; extrapolates the fitted line.",
+    formula: "log P_t = a + b·t + ε_t → ŷ_{t+h} = a + b·(t+h)",
+    predict: (c, h) => olsForecast(logPrices(c), h),
+  },
+  {
+    id: "ar1",
+    label: "AR(1) return model",
+    category: "Time series",
+    description: "First-order autoregression on daily log returns with estimated mean and φ.",
+    formula: "r_t = μ + φ(r_{t−1}−μ) + ε_t;  P path via cumulative exp(r̂)",
+    predict: ar1Path,
+  },
+  {
+    id: "momentum",
+    label: "Cross-sectional momentum",
+    category: "Quant factor",
+    description: "20/50 SMA trend filter plus 63-day average drift; clamped for stability.",
+    formula: "drift = f(SMA20 ≷ SMA50, log(P_t/P_{t−63})/63)",
+    predict: momentumPath,
+  },
+  {
+    id: "garch",
+    label: "GARCH(1,1) vol forecast",
+    category: "Volatility modeling",
+    description: "Conditional variance with mean drift; path uses μ − ½σ² adjustment.",
+    formula: "σ²_t = ω + α ε²_{t−1} + β σ²_{t−1};  E[r] = μ − ½σ²",
+    predict: garchPath,
+  },
+  {
+    id: "kalman",
+    label: "Kalman local trend",
+    category: "State-space",
+    description: "Local linear trend state-space filter; recursively updates level and slope.",
+    formula: "x_t = [level, trend];  x_{t|t} = x_{t|t−1} + K·innovation",
+    predict: kalmanPath,
+  },
+  {
+    id: "arima",
+    label: "ARIMA(1,1,0)",
+    category: "Time series",
+    description: "Integrated AR(1) on first differences of log prices (random-walk with drift + AR).",
+    formula: "Δy_t = μ + φ(Δy_{t−1}−μ) + ε_t;  ŷ_{t+h} = y_t + Σ Δŷ",
+    predict: arimaPath,
+  },
+  {
+    id: "ou",
+    label: "Ornstein–Uhlenbeck MR",
+    category: "Mean reversion",
+    description: "Mean-reverting diffusion of log price toward a long-run mean (120-day).",
+    formula: "dx = θ(μ − x) dt;  discrete: x ← x + θ(μ − x)",
+    predict: ouPath,
+  },
+  {
+    id: "ewma",
+    label: "RiskMetrics EWMA",
+    category: "Risk parity",
+    description: "JPMorgan RiskMetrics-style exponentially weighted return & variance (λ=0.94).",
+    formula: "σ²_t = λ σ²_{t−1} + (1−λ)r²_t;  drift = μ̂_EWMA − ½σ²",
+    predict: ewmaPath,
+  },
+  {
+    id: "regime",
+    label: "Vol regime switch",
+    category: "Regime detection",
+    description: "Blends momentum (low vol) and OU mean reversion (high vol) by short/long vol ratio.",
+    formula: "w = clamp(1.2 − σ_short/σ_long);  path = w·mom + (1−w)·OU",
+    predict: regimePath,
+  },
 ];
 
 export type ModelWeights = Record<ModelId, number>;
+
+export type ModelBreakdown = {
+  id: ModelId;
+  label: string;
+  category: string;
+  description: string;
+  formula: string;
+  weight: number;
+  rmse: number;
+  mape: number;
+  hitRate: number;
+  targetPrice: number;
+  expectedReturn: number;
+};
 
 export function walkForwardRmse(
   closes: number[],
@@ -278,7 +364,9 @@ export function fitEnsemble(closes: number[], horizon: number): {
   weights: ModelWeights;
   logPath: number[];
   metrics: { rmse: number; mape: number; hitRate: number };
+  models: ModelBreakdown[];
 } {
+  const last = closes[closes.length - 1];
   const wfHorizon = Math.min(horizon, 10);
   const scores = MODEL_REGISTRY.map((m) => ({
     id: m.id,
@@ -294,13 +382,30 @@ export function fitEnsemble(closes: number[], horizon: number): {
     MODEL_REGISTRY.reduce((sum, m, j) => sum + weights[m.id] * paths[j][i], 0)
   );
 
+  const models: ModelBreakdown[] = MODEL_REGISTRY.map((m, i) => {
+    const targetPrice = Math.exp(paths[i][horizon - 1]);
+    return {
+      id: m.id,
+      label: m.label,
+      category: m.category,
+      description: m.description,
+      formula: m.formula,
+      weight: weightArr[i],
+      rmse: scores[i].rmse,
+      mape: scores[i].mape,
+      hitRate: scores[i].hitRate,
+      targetPrice,
+      expectedReturn: targetPrice / last - 1,
+    };
+  }).sort((a, b) => b.weight - a.weight);
+
   const metrics = {
     rmse: scores.reduce((s, x, i) => s + weightArr[i] * x.rmse, 0),
     mape: scores.reduce((s, x, i) => s + weightArr[i] * x.mape, 0),
     hitRate: scores.reduce((s, x, i) => s + weightArr[i] * x.hitRate, 0),
   };
 
-  return { weights, logPath, metrics };
+  return { weights, logPath, metrics, models };
 }
 
 export const MODEL_LABELS: Record<ModelId, string> = Object.fromEntries(
