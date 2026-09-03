@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { ForecastChart } from "@/components/forecast-chart";
+import { StockSummaryTable } from "@/components/stock-summary-table";
 import { BacktestPanel, Metric, ModelResultsTable, ModelWeightsPanel } from "@/components/analysis-panels";
 import { VerificationBanner } from "@/components/verification-banner";
 import { Badge } from "@/components/ui/badge";
@@ -382,14 +383,22 @@ export function Dashboard() {
                 step="01"
                 icon={<Lightbulb className="size-4" />}
                 title="Suggestion & advice"
-                subtitle="Signal, target, and paper-trade actions"
+                subtitle="All stocks summarized — signal, metrics, and trade action"
+              />
+
+              <StockSummaryTable
+                quotes={run?.quotes ?? []}
+                active={active}
+                onSelect={setActive}
+                onTrade={tradeSignal}
+                onTradeAll={tradeAllSignals}
               />
 
               <Card className="border border-sky-400/20 bg-gradient-to-br from-sky-400/8 to-transparent">
                 <CardHeader>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <CardTitle className="text-lg">Advice for {quote.symbol}</CardTitle>
+                      <CardTitle className="text-lg">Detail · {quote.symbol}</CardTitle>
                       <CardDescription className="mt-1 max-w-2xl">{quote.rationale}</CardDescription>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -486,160 +495,84 @@ export function Dashboard() {
 
               <BacktestPanel backtest={quote.backtest} />
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-                <Card className="bg-[#10161d]">
-                  <CardHeader className="flex flex-row items-center justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-base">Signal board</CardTitle>
-                      <CardDescription>Ensemble conclusions across the blotter</CardDescription>
-                    </div>
-                    <Button
-                      size="sm"
-                      onClick={tradeAllSignals}
-                      disabled={!run?.quotes.some((q) => q.liveReady && q.signal !== "HOLD")}
-                    >
-                      Trade verified signals
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-left text-sm">
-                      <thead className="text-[11px] tracking-wide text-white/40 uppercase">
-                        <tr className="border-b border-white/8">
-                          <th className="py-2 pr-3 font-medium">Name</th>
-                          <th className="py-2 pr-3 font-medium">Target</th>
-                          <th className="py-2 pr-3 font-medium">Exp.</th>
-                          <th className="py-2 pr-3 font-medium">Signal</th>
-                          <th className="py-2 pr-3 font-medium">1y BT</th>
-                          <th className="py-2 pr-3 font-medium">Sharpe</th>
-                          <th className="py-2 font-medium" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(run?.quotes ?? []).map((q) => (
-                          <tr
-                            key={q.symbol}
-                            className={cn(
-                              "border-b border-white/6 last:border-0",
-                              q.symbol === active && "bg-white/3"
-                            )}
+              <Card className="bg-[#10161d]">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <Wallet className="size-4 text-white/50" /> Paper book
+                    </CardTitle>
+                    <CardDescription>Local fills · $100k start</CardDescription>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={book.reset}>
+                    <RotateCcw /> Reset
+                  </Button>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  {book.portfolio.positions.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-sm text-white/45">
+                      No open positions. Act on the suggestion to paper-trade.
+                    </p>
+                  ) : (
+                    <ul className="flex flex-col gap-2">
+                      {book.portfolio.positions.map((p) => {
+                        const last = marks[p.symbol] ?? p.avgPrice;
+                        const value = p.shares * last;
+                        const upnl = (last / p.avgPrice - 1) * p.shares * p.avgPrice;
+                        return (
+                          <li
+                            key={p.symbol}
+                            className="flex items-center justify-between rounded-lg bg-white/3 px-3 py-2"
                           >
-                            <td className="py-2.5 pr-3">
-                              <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
-                                <div className="font-medium">{q.symbol}</div>
-                                <div className="text-[11px] text-white/40">{q.name}</div>
-                              </button>
-                            </td>
-                            <td className="py-2.5 pr-3 font-mono">{formatPrice(q.targetPrice)}</td>
-                            <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.expectedReturn))}>
-                              {formatPct(q.expectedReturn)}
-                            </td>
-                            <td className="py-2.5 pr-3">
-                              <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
-                                {q.signal}
-                              </span>
-                            </td>
-                            <td className="py-2.5 pr-3">
-                              <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
-                                {q.liveReady ? "Pass" : "Fail"}
-                              </span>
-                            </td>
-                            <td className="py-2.5 pr-3 font-mono text-white/60">{q.backtest.sharpe.toFixed(2)}</td>
-                            <td className="py-2.5 text-right">
+                            <div>
+                              <div className="text-sm font-medium">
+                                {p.symbol} <span className="text-white/40">{p.shares} sh</span>
+                              </div>
+                              <div className="text-[11px] text-white/40">
+                                avg {formatPrice(p.avgPrice)} · {formatCompact(value)}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className={cn("font-mono text-sm", clsxSign(upnl))}>{formatMoney(upnl)}</span>
                               <Button
                                 size="xs"
                                 variant="outline"
-                                disabled={q.signal === "HOLD" || !q.liveReady}
-                                onClick={() => tradeSignal(q)}
+                                onClick={() => {
+                                  const q = run?.quotes.find((x) => x.symbol === p.symbol);
+                                  if (!q) return;
+                                  execute("SELL", q, p.shares, "Close position");
+                                }}
+                                disabled={!run?.quotes.find((x) => x.symbol === p.symbol)}
                               >
-                                Trade
+                                Close
                               </Button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-[#10161d]">
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Wallet className="size-4 text-white/50" /> Paper book
-                      </CardTitle>
-                      <CardDescription>Local fills · $100k start</CardDescription>
-                    </div>
-                    <Button size="sm" variant="ghost" onClick={book.reset}>
-                      <RotateCcw /> Reset
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="flex flex-col gap-4">
-                    {book.portfolio.positions.length === 0 ? (
-                      <p className="rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-sm text-white/45">
-                        No open positions. Act on the suggestion to paper-trade.
-                      </p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                  <div>
+                    <div className="mb-2 text-[11px] tracking-wide text-white/40 uppercase">Recent fills</div>
+                    {book.portfolio.fills.length === 0 ? (
+                      <p className="text-sm text-white/40">No trades yet.</p>
                     ) : (
-                      <ul className="flex flex-col gap-2">
-                        {book.portfolio.positions.map((p) => {
-                          const last = marks[p.symbol] ?? p.avgPrice;
-                          const value = p.shares * last;
-                          const upnl = (last / p.avgPrice - 1) * p.shares * p.avgPrice;
-                          return (
-                            <li
-                              key={p.symbol}
-                              className="flex items-center justify-between rounded-lg bg-white/3 px-3 py-2"
-                            >
-                              <div>
-                                <div className="text-sm font-medium">
-                                  {p.symbol} <span className="text-white/40">{p.shares} sh</span>
-                                </div>
-                                <div className="text-[11px] text-white/40">
-                                  avg {formatPrice(p.avgPrice)} · {formatCompact(value)}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className={cn("font-mono text-sm", clsxSign(upnl))}>{formatMoney(upnl)}</span>
-                                <Button
-                                  size="xs"
-                                  variant="outline"
-                                  onClick={() => {
-                                    const q = run?.quotes.find((x) => x.symbol === p.symbol);
-                                    if (!q) return;
-                                    execute("SELL", q, p.shares, "Close position");
-                                  }}
-                                  disabled={!run?.quotes.find((x) => x.symbol === p.symbol)}
-                                >
-                                  Close
-                                </Button>
-                              </div>
-                            </li>
-                          );
-                        })}
+                      <ul className="flex max-h-40 flex-col gap-1.5 overflow-auto text-sm">
+                        {book.portfolio.fills.slice(0, 12).map((f) => (
+                          <li key={f.id} className="flex justify-between gap-3 text-white/65">
+                            <span>
+                              <span className={f.side === "BUY" ? "text-emerald-400" : "text-rose-400"}>
+                                {f.side}
+                              </span>{" "}
+                              {f.shares} {f.symbol}
+                            </span>
+                            <span className="font-mono text-white/50">{formatPrice(f.price)}</span>
+                          </li>
+                        ))}
                       </ul>
                     )}
-                    <div>
-                      <div className="mb-2 text-[11px] tracking-wide text-white/40 uppercase">Recent fills</div>
-                      {book.portfolio.fills.length === 0 ? (
-                        <p className="text-sm text-white/40">No trades yet.</p>
-                      ) : (
-                        <ul className="flex max-h-40 flex-col gap-1.5 overflow-auto text-sm">
-                          {book.portfolio.fills.slice(0, 12).map((f) => (
-                            <li key={f.id} className="flex justify-between gap-3 text-white/65">
-                              <span>
-                                <span className={f.side === "BUY" ? "text-emerald-400" : "text-rose-400"}>
-                                  {f.side}
-                                </span>{" "}
-                                {f.shares} {f.symbol}
-                              </span>
-                              <span className="font-mono text-white/50">{formatPrice(f.price)}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+                  </div>
+                </CardContent>
+              </Card>
             </section>
             {/* ========== 2. DATA ========== */}
             <section className="flex flex-col gap-4">
@@ -690,49 +623,6 @@ export function Dashboard() {
                     </span>
                     <span>80% band from residual vol</span>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-[#10161d]">
-                <CardHeader>
-                  <CardTitle className="text-base">Company blotter</CardTitle>
-                  <CardDescription>Observed prices across your selected names</CardDescription>
-                </CardHeader>
-                <CardContent className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-sm">
-                    <thead className="text-[11px] tracking-wide text-white/40 uppercase">
-                      <tr className="border-b border-white/8">
-                        <th className="py-2 pr-3 font-medium">Name</th>
-                        <th className="py-2 pr-3 font-medium">Last</th>
-                        <th className="py-2 pr-3 font-medium">Day</th>
-                        <th className="py-2 pr-3 font-medium">Source</th>
-                        <th className="py-2 font-medium">Bars</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(run?.quotes ?? []).map((q) => (
-                        <tr
-                          key={q.symbol}
-                          className={cn("border-b border-white/6 last:border-0", q.symbol === active && "bg-white/3")}
-                        >
-                          <td className="py-2.5 pr-3">
-                            <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
-                              <div className="font-medium">{q.symbol}</div>
-                              <div className="text-[11px] text-white/40">{q.name}</div>
-                            </button>
-                          </td>
-                          <td className="py-2.5 pr-3 font-mono">{formatPrice(q.last)}</td>
-                          <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.changePct))}>
-                            {formatPct(q.changePct)}
-                          </td>
-                          <td className="py-2.5 pr-3 text-xs text-white/50">
-                            {q.source === "simulated" ? "Simulated" : "Live"}
-                          </td>
-                          <td className="py-2.5 font-mono text-white/55">{q.history.length}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
                 </CardContent>
               </Card>
             </section>
