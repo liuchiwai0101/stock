@@ -27,7 +27,6 @@ import { usePortfolio } from "@/hooks/use-portfolio";
 import { clsxSign, formatCompact, formatMoney, formatPct, formatPrice } from "@/lib/format";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse, TradeSignal } from "@/lib/types";
-import { MODEL_CATALOG } from "@/lib/model-catalog";
 import { DEFAULT_SYMBOLS, UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
@@ -245,7 +244,7 @@ export function Dashboard() {
             <div>
               <div className="text-sm font-semibold tracking-tight">Signal Desk</div>
               <div className="text-[11px] text-white/45">
-                Data → Model → Advice
+                Suggestion → Data → Model
                 {run ? ` · ${liveCount}/${run.quotes.length} live · ${readyCount} trade-ready` : ""}
               </div>
             </div>
@@ -377,174 +376,13 @@ export function Dashboard() {
 
         {quote && (
           <>
-            {/* ========== 1. DATA ========== */}
+            {/* ========== 1. SUGGESTION / ADVICE ========== */}
             <section className="flex flex-col gap-4">
               <StageHeading
                 step="01"
-                icon={<Database className="size-4" />}
-                title="Data"
-                subtitle="Market prices and history for the selected companies"
-              />
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Metric label="Last" value={formatPrice(quote.last)} />
-                <Metric
-                  label="Day change"
-                  value={formatPct(quote.changePct)}
-                  tone={quote.changePct}
-                />
-                <Metric label="Source" value={quote.source === "simulated" ? "Simulated" : "Live feed"} />
-                <Metric label="History bars" value={String(quote.history.length)} />
-              </div>
-
-              <Card className="bg-[#10161d]">
-                <CardHeader className="border-b border-white/6 pb-3">
-                  <div className="flex flex-wrap items-end justify-between gap-3">
-                    <div>
-                      <CardTitle className="text-xl">
-                        {quote.name} <span className="text-white/35">{quote.symbol}</span>
-                      </CardTitle>
-                      <CardDescription className="mt-1">
-                        Price history with {horizon}-day forecast overlay ·{" "}
-                        {quote.source === "simulated" ? "simulated series" : "live market data"}
-                      </CardDescription>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono text-2xl font-medium tracking-tight">{formatPrice(quote.last)}</div>
-                      <div className={cn("text-sm", clsxSign(quote.changePct))}>{formatPct(quote.changePct)}</div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4">
-                  <ForecastChart quote={quote} />
-                  <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-white/40">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-0.5 w-5 bg-[var(--chart-line)]" /> History
-                    </span>
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="h-0.5 w-5 border-t border-dashed border-[var(--forecast-line)]" /> Forecast path
-                    </span>
-                    <span>80% band from residual vol</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-[#10161d]">
-                <CardHeader>
-                  <CardTitle className="text-base">Company blotter</CardTitle>
-                  <CardDescription>Observed prices across your selected names</CardDescription>
-                </CardHeader>
-                <CardContent className="overflow-x-auto">
-                  <table className="w-full min-w-[520px] text-left text-sm">
-                    <thead className="text-[11px] tracking-wide text-white/40 uppercase">
-                      <tr className="border-b border-white/8">
-                        <th className="py-2 pr-3 font-medium">Name</th>
-                        <th className="py-2 pr-3 font-medium">Last</th>
-                        <th className="py-2 pr-3 font-medium">Day</th>
-                        <th className="py-2 pr-3 font-medium">Source</th>
-                        <th className="py-2 font-medium">Bars</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(run?.quotes ?? []).map((q) => (
-                        <tr
-                          key={q.symbol}
-                          className={cn("border-b border-white/6 last:border-0", q.symbol === active && "bg-white/3")}
-                        >
-                          <td className="py-2.5 pr-3">
-                            <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
-                              <div className="font-medium">{q.symbol}</div>
-                              <div className="text-[11px] text-white/40">{q.name}</div>
-                            </button>
-                          </td>
-                          <td className="py-2.5 pr-3 font-mono">{formatPrice(q.last)}</td>
-                          <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.changePct))}>
-                            {formatPct(q.changePct)}
-                          </td>
-                          <td className="py-2.5 pr-3 text-xs text-white/50">
-                            {q.source === "simulated" ? "Simulated" : "Live"}
-                          </td>
-                          <td className="py-2.5 font-mono text-white/55">{q.history.length}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </CardContent>
-              </Card>
-            </section>
-
-            {/* ========== 2. MODEL ========== */}
-            <section className="flex flex-col gap-4">
-              <StageHeading
-                step="02"
-                icon={<BrainCircuit className="size-4" />}
-                title="Model"
-                subtitle="10-model institutional ensemble · walk-forward weighting"
-              />
-
-              {run?.verification && <VerificationBanner verification={run.verification} />}
-
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <Metric label="WF hit rate" value={`${(quote.metrics.hitRate * 100).toFixed(0)}%`} />
-                <Metric label="MAPE" value={`${(quote.metrics.mape * 100).toFixed(1)}%`} />
-                <Metric label="RMSE" value={quote.metrics.rmse.toFixed(2)} />
-                <Metric label="Residual vol" value={`${(quote.metrics.residualVol * 100).toFixed(2)}%`} />
-              </div>
-
-              <Card className="bg-[#10161d]">
-                <CardHeader>
-                  <CardTitle className="text-base">Ensemble mix</CardTitle>
-                  <CardDescription>
-                    Softmax over inverse walk-forward RMSE — lower error earns higher weight
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ModelWeightsPanel quote={quote} />
-                </CardContent>
-              </Card>
-
-              <ModelResultsTable
-                models={quote.models}
-                last={quote.last}
-                ensembleTarget={quote.targetPrice}
-              />
-
-              <Card className="bg-[#10161d]">
-                <CardHeader>
-                  <CardTitle className="text-base">Model reference</CardTitle>
-                  <CardDescription>
-                    What each model does, when to use it, and the core formula
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-2 md:grid-cols-2">
-                    {MODEL_CATALOG.map((m) => (
-                      <div key={m.id} className="rounded-lg border border-white/8 bg-white/2 px-3 py-2.5">
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <div className="text-[10px] tracking-wide text-sky-300/80 uppercase">{m.id}</div>
-                          <div className="text-[10px] text-white/35">{m.category}</div>
-                        </div>
-                        <div className="text-sm font-medium leading-snug">{m.label}</div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-white/50">{m.description}</p>
-                        <p className="mt-1.5 text-[11px] leading-relaxed text-emerald-300/75">
-                          <span className="font-medium text-emerald-300/90">Purpose: </span>
-                          {m.purpose}
-                        </p>
-                        <p className="mt-1.5 font-mono text-[10px] leading-relaxed text-sky-300/65">{m.formula}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </section>
-
-            {/* ========== 3. CONCLUSION / ADVICE ========== */}
-            <section className="flex flex-col gap-4">
-              <StageHeading
-                step="03"
                 icon={<Lightbulb className="size-4" />}
-                title="Conclusion & advice"
-                subtitle="Backtest gate, signal, and paper-trade actions"
+                title="Suggestion & advice"
+                subtitle="Signal, target, and paper-trade actions"
               />
 
               <Card className="border border-sky-400/20 bg-gradient-to-br from-sky-400/8 to-transparent">
@@ -738,7 +576,7 @@ export function Dashboard() {
                   <CardContent className="flex flex-col gap-4">
                     {book.portfolio.positions.length === 0 ? (
                       <p className="rounded-lg border border-dashed border-white/12 px-3 py-6 text-center text-sm text-white/45">
-                        No open positions. Act on advice above to paper-trade.
+                        No open positions. Act on the suggestion to paper-trade.
                       </p>
                     ) : (
                       <ul className="flex flex-col gap-2">
@@ -803,12 +641,144 @@ export function Dashboard() {
                 </Card>
               </div>
             </section>
+            {/* ========== 2. DATA ========== */}
+            <section className="flex flex-col gap-4">
+              <StageHeading
+                step="02"
+                icon={<Database className="size-4" />}
+                title="Data"
+                subtitle="Market prices and history for the selected companies"
+              />
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric label="Last" value={formatPrice(quote.last)} />
+                <Metric
+                  label="Day change"
+                  value={formatPct(quote.changePct)}
+                  tone={quote.changePct}
+                />
+                <Metric label="Source" value={quote.source === "simulated" ? "Simulated" : "Live feed"} />
+                <Metric label="History bars" value={String(quote.history.length)} />
+              </div>
+
+              <Card className="bg-[#10161d]">
+                <CardHeader className="border-b border-white/6 pb-3">
+                  <div className="flex flex-wrap items-end justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-xl">
+                        {quote.name} <span className="text-white/35">{quote.symbol}</span>
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Price history with {horizon}-day forecast overlay ·{" "}
+                        {quote.source === "simulated" ? "simulated series" : "live market data"}
+                      </CardDescription>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-mono text-2xl font-medium tracking-tight">{formatPrice(quote.last)}</div>
+                      <div className={cn("text-sm", clsxSign(quote.changePct))}>{formatPct(quote.changePct)}</div>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <ForecastChart quote={quote} />
+                  <div className="mt-2 flex flex-wrap gap-4 text-[11px] text-white/40">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-0.5 w-5 bg-[var(--chart-line)]" /> History
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-0.5 w-5 border-t border-dashed border-[var(--forecast-line)]" /> Forecast path
+                    </span>
+                    <span>80% band from residual vol</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-[#10161d]">
+                <CardHeader>
+                  <CardTitle className="text-base">Company blotter</CardTitle>
+                  <CardDescription>Observed prices across your selected names</CardDescription>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <table className="w-full min-w-[520px] text-left text-sm">
+                    <thead className="text-[11px] tracking-wide text-white/40 uppercase">
+                      <tr className="border-b border-white/8">
+                        <th className="py-2 pr-3 font-medium">Name</th>
+                        <th className="py-2 pr-3 font-medium">Last</th>
+                        <th className="py-2 pr-3 font-medium">Day</th>
+                        <th className="py-2 pr-3 font-medium">Source</th>
+                        <th className="py-2 font-medium">Bars</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(run?.quotes ?? []).map((q) => (
+                        <tr
+                          key={q.symbol}
+                          className={cn("border-b border-white/6 last:border-0", q.symbol === active && "bg-white/3")}
+                        >
+                          <td className="py-2.5 pr-3">
+                            <button type="button" onClick={() => setActive(q.symbol)} className="text-left">
+                              <div className="font-medium">{q.symbol}</div>
+                              <div className="text-[11px] text-white/40">{q.name}</div>
+                            </button>
+                          </td>
+                          <td className="py-2.5 pr-3 font-mono">{formatPrice(q.last)}</td>
+                          <td className={cn("py-2.5 pr-3 font-mono", clsxSign(q.changePct))}>
+                            {formatPct(q.changePct)}
+                          </td>
+                          <td className="py-2.5 pr-3 text-xs text-white/50">
+                            {q.source === "simulated" ? "Simulated" : "Live"}
+                          </td>
+                          <td className="py-2.5 font-mono text-white/55">{q.history.length}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </section>
+
+            {/* ========== 3. MODEL ========== */}
+            <section className="flex flex-col gap-4">
+              <StageHeading
+                step="03"
+                icon={<BrainCircuit className="size-4" />}
+                title="Model"
+                subtitle="10-model institutional ensemble · walk-forward weighting"
+              />
+
+              {run?.verification && <VerificationBanner verification={run.verification} />}
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <Metric label="WF hit rate" value={`${(quote.metrics.hitRate * 100).toFixed(0)}%`} />
+                <Metric label="MAPE" value={`${(quote.metrics.mape * 100).toFixed(1)}%`} />
+                <Metric label="RMSE" value={quote.metrics.rmse.toFixed(2)} />
+                <Metric label="Residual vol" value={`${(quote.metrics.residualVol * 100).toFixed(2)}%`} />
+              </div>
+
+              <Card className="bg-[#10161d]">
+                <CardHeader>
+                  <CardTitle className="text-base">Ensemble mix</CardTitle>
+                  <CardDescription>
+                    Softmax over inverse walk-forward RMSE — lower error earns higher weight
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ModelWeightsPanel quote={quote} />
+                </CardContent>
+              </Card>
+
+              <ModelResultsTable
+                models={quote.models}
+                last={quote.last}
+                ensembleTarget={quote.targetPrice}
+              />
+            </section>
+
           </>
         )}
 
         <p className="pb-6 text-center text-[11px] leading-relaxed text-white/35">
-          Flow: observe market data → inspect ensemble models → act on gated advice. Educational paper trading
-          only — not investment advice.
+          Suggestion first, then market data and model detail. Educational paper trading only — not investment advice.
         </p>
       </main>
     </div>
