@@ -37,21 +37,39 @@ export function StockSummaryTable({
   onSelect,
   onTrade,
   onTradeAll,
+  mode = "watch",
+  scanMeta,
 }: {
   quotes: CompanyForecast[];
   active: string;
   onSelect: (symbol: string) => void;
   onTrade: (q: CompanyForecast) => void;
   onTradeAll: () => void;
+  mode?: "watch" | "buyList";
+  scanMeta?: { scanned: number; passed: number; buyCount: number } | null;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const tradable = quotes.some((q) => q.liveReady && q.signal !== "HOLD");
+  const buyList = mode === "buyList";
+  const rows = useMemo(() => {
+    const list = buyList
+      ? quotes.filter((q) => q.liveReady && q.signal === "BUY")
+      : quotes;
+    return [...list].sort((a, b) => {
+      if (!buyList) return 0;
+      const hit = b.metrics.hitRate - a.metrics.hitRate;
+      if (Math.abs(hit) > 1e-9) return hit;
+      return b.confidence - a.confidence;
+    });
+  }, [quotes, buyList]);
+
+  const tradable = rows.some((q) => q.liveReady && q.signal !== "HOLD");
   const modelCols = useMemo(() => {
+    if (buyList) return [];
     const present = new Set(quotes.flatMap((q) => (q.models ?? []).map((m) => m.id)));
     if (present.size === 0) return MODEL_COLUMNS;
     return MODEL_COLUMNS.filter((c) => present.has(c.id));
-  }, [quotes]);
-  const colCount = 6 + modelCols.length;
+  }, [quotes, buyList]);
+  const colCount = (buyList ? 8 : 6) + modelCols.length;
 
   function toggleRow(symbol: string) {
     if (expanded === symbol) {
@@ -66,9 +84,15 @@ export function StockSummaryTable({
     <Card className="bg-[#10161d]">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div>
-          <CardTitle className="text-base">All stocks × models</CardTitle>
+          <CardTitle className="text-base">
+            {buyList ? "US buy list · 1y pass only" : "All stocks × models"}
+          </CardTitle>
           <CardDescription>
-            Charts start collapsed — tap a row to expand or collapse
+            {buyList
+              ? scanMeta
+                ? `Scanned ${scanMeta.scanned} U.S. names · ${scanMeta.passed} passed 1y BT · ${scanMeta.buyCount} BUY · sorted by model hit rate`
+                : "Passed 1-year backtest and ensemble BUY · sorted by hit rate"
+              : "Charts start collapsed — tap a row to expand or collapse"}
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
@@ -76,15 +100,24 @@ export function StockSummaryTable({
         </Button>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        {quotes.length === 0 ? (
-          <p className="py-8 text-center text-sm text-white/45">Add tickers and run the model.</p>
+        {rows.length === 0 ? (
+          <p className="py-8 text-center text-sm text-white/45">
+            {buyList
+              ? "No U.S. names currently pass the 1-year backtest with a BUY signal. Try another horizon or rescan."
+              : "Add tickers and run the model."}
+          </p>
         ) : (
-          <table className="w-full min-w-[1100px] text-left text-sm">
+          <table className={cn("w-full text-left text-sm", buyList ? "min-w-[720px]" : "min-w-[1100px]")}>
             <thead className="text-[10px] tracking-wide text-white/40 uppercase">
               <tr className="border-b border-white/8">
-                <th className="sticky left-0 z-10 bg-[#10161d] py-2 pr-3 font-medium">Stock</th>
+                <th className="sticky left-0 z-10 bg-[#10161d] py-2 pr-3 font-medium">#</th>
+                <th className="sticky left-8 z-10 bg-[#10161d] py-2 pr-3 font-medium">Stock</th>
                 <th className="py-2 pr-3 font-medium">Last</th>
-                <th className="py-2 pr-3 font-medium">Ensemble</th>
+                <th className="py-2 pr-3 font-medium">Target</th>
+                <th className="py-2 pr-3 font-medium">Exp.</th>
+                <th className="py-2 pr-3 font-medium">Hit</th>
+                {buyList ? <th className="py-2 pr-3 font-medium">Conf.</th> : null}
+                {buyList ? <th className="py-2 pr-3 font-medium">Sharpe</th> : null}
                 <th className="py-2 pr-3 font-medium">Signal</th>
                 <th className="py-2 pr-3 font-medium">BT</th>
                 {modelCols.map((c) => (
@@ -96,7 +129,7 @@ export function StockSummaryTable({
               </tr>
             </thead>
             <tbody>
-              {quotes.map((q) => {
+              {rows.map((q, index) => {
                 const isOpen = expanded === q.symbol;
                 return (
                   <Fragment key={q.symbol}>
@@ -107,9 +140,12 @@ export function StockSummaryTable({
                       )}
                       onClick={() => toggleRow(q.symbol)}
                     >
+                      <td className="sticky left-0 z-10 bg-inherit py-2.5 pr-3 font-mono text-white/40">
+                        {index + 1}
+                      </td>
                       <td
                         className={cn(
-                          "sticky left-0 z-10 py-2.5 pr-3",
+                          "sticky left-8 z-10 py-2.5 pr-3",
                           isOpen || q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
                         )}
                       >
@@ -118,19 +154,30 @@ export function StockSummaryTable({
                             <span className="mr-1 inline-block w-3 text-white/35">{isOpen ? "▾" : "▸"}</span>
                             {q.symbol}
                           </div>
-                          <div className="max-w-[110px] truncate pl-4 text-[11px] text-white/40">{q.name}</div>
+                          <div className="max-w-[120px] truncate pl-4 text-[11px] text-white/40">{q.name}</div>
                         </button>
                       </td>
                       <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
                         {formatPrice(q.last)}
                         <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
                       </td>
-                      <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
-                        {formatPrice(q.targetPrice)}
-                        <div className={cn("text-[11px]", clsxSign(q.expectedReturn))}>
-                          {formatPct(q.expectedReturn)}
-                        </div>
+                      <td className="py-2.5 pr-3 font-mono whitespace-nowrap">{formatPrice(q.targetPrice)}</td>
+                      <td className={cn("py-2.5 pr-3 font-mono whitespace-nowrap", clsxSign(q.expectedReturn))}>
+                        {formatPct(q.expectedReturn)}
                       </td>
+                      <td className="py-2.5 pr-3 font-mono text-sky-200 whitespace-nowrap">
+                        {(q.metrics.hitRate * 100).toFixed(0)}%
+                      </td>
+                      {buyList ? (
+                        <td className="py-2.5 pr-3 font-mono text-white/65">
+                          {(q.confidence * 100).toFixed(0)}%
+                        </td>
+                      ) : null}
+                      {buyList ? (
+                        <td className="py-2.5 pr-3 font-mono text-white/65">
+                          {q.backtest.sharpe.toFixed(2)}
+                        </td>
+                      ) : null}
                       <td className="py-2.5 pr-3">
                         <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
                           {q.signal}
@@ -182,12 +229,13 @@ export function StockSummaryTable({
                             <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
                               <div className="text-xs text-white/55">
                                 <span className="font-medium text-white/80">{q.symbol}</span>
+                                {" · hit "}
+                                {(q.metrics.hitRate * 100).toFixed(0)}%
                                 {" · "}
                                 {formatPrice(q.last)}
                                 {" · "}
                                 <span className={clsxSign(q.expectedReturn)}>{formatPct(q.expectedReturn)}</span>
                                 {" expected"}
-                                {!q.liveReady ? " · auto-trade blocked" : ""}
                               </div>
                               <span
                                 className={cn(

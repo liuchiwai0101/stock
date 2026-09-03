@@ -198,8 +198,10 @@ export async function loadQuote(symbol: string, range = "5y"): Promise<QuoteSeri
   if (!/^[A-Z0-9.^]{1,10}$/.test(ticker)) {
     throw new Error("Invalid ticker");
   }
+  const yahooSymbol = ticker.replace(/\./g, "-");
   try {
-    return await fetchYahoo(ticker, range);
+    const series = await fetchYahoo(yahooSymbol, range);
+    return { ...series, symbol: ticker };
   } catch {
     try {
       return await fetchStooq(ticker);

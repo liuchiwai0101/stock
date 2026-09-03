@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { LoaderCircle, Search, Sparkles, X } from "lucide-react";
+import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
@@ -38,6 +38,12 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"watch" | "buyList">("watch");
+  const [scanMeta, setScanMeta] = useState<{
+    scanned: number;
+    passed: number;
+    buyCount: number;
+  } | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const requestSeq = useRef(0);
 
@@ -61,6 +67,8 @@ export function Dashboard() {
     const seq = ++requestSeq.current;
     setLoading(true);
     setError(null);
+    setViewMode("watch");
+    setScanMeta(null);
     try {
       const res = await fetch(
         `/api/run?symbols=${encodeURIComponent(nextSymbols.join(","))}&horizon=${nextHorizon}`,
@@ -92,6 +100,44 @@ export function Dashboard() {
     }
   }, []);
 
+  const scanBuyList = useCallback(async (nextHorizon: Horizon) => {
+    const seq = ++requestSeq.current;
+    setLoading(true);
+    setError(null);
+    setViewMode("buyList");
+    try {
+      const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
+      const json = (await res.json()) as RunResponse & {
+        error?: string;
+        scanned?: number;
+        passed?: number;
+        buyCount?: number;
+      };
+      if (seq !== requestSeq.current) return;
+      if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
+      setRun(json);
+      setScanMeta({
+        scanned: json.scanned ?? 0,
+        passed: json.passed ?? 0,
+        buyCount: json.buyCount ?? json.quotes.length,
+      });
+      setActive((prev) =>
+        json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? prev),
+      );
+      if (json.errors?.length) {
+        setError(
+          `Scan finished with ${json.errors.length} data issues. Showing ${json.quotes.length} BUY names that passed.`,
+        );
+      }
+    } catch (err) {
+      if (seq !== requestSeq.current) return;
+      setError(err instanceof Error ? err.message : "US buy scan failed.");
+      setScanMeta(null);
+    } finally {
+      if (seq === requestSeq.current) setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     const saved = loadSelection();
     setSymbols(saved.symbols);
@@ -107,6 +153,7 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!selectionReady) return;
+    if (viewMode === "buyList") return;
     const timer = window.setTimeout(() => {
       void load(symbols, horizon);
     }, 0);
@@ -114,7 +161,7 @@ export function Dashboard() {
       window.clearTimeout(timer);
       requestSeq.current += 1;
     };
-  }, [symbols, horizon, load, selectionReady]);
+  }, [symbols, horizon, load, selectionReady, viewMode]);
 
   useEffect(() => {
     const q = query.trim();
@@ -286,9 +333,23 @@ export function Dashboard() {
                 </Button>
               ))}
               <Button size="sm" variant="secondary" onClick={() => void load(symbols, horizon)} disabled={loading}>
-                {loading ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+                {loading && viewMode === "watch" ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
                 Run
               </Button>
+              <Button
+                size="sm"
+                variant={viewMode === "buyList" ? "default" : "outline"}
+                onClick={() => void scanBuyList(horizon)}
+                disabled={loading}
+              >
+                {loading && viewMode === "buyList" ? <LoaderCircle className="animate-spin" /> : <Radar />}
+                Scan US buys
+              </Button>
+              {viewMode === "buyList" ? (
+                <Button size="sm" variant="ghost" onClick={() => void load(symbols, horizon)} disabled={loading}>
+                  My watchlist
+                </Button>
+              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -342,13 +403,22 @@ export function Dashboard() {
           </div>
         )}
 
-        {error && !quote && (
+        {error && !run && (
           <Card className="border-rose-500/20 bg-rose-500/8">
             <CardHeader>
               <CardTitle>Could not load data</CardTitle>
               <CardDescription>{error}</CardDescription>
             </CardHeader>
           </Card>
+        )}
+
+        {loading && (
+          <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
+            <LoaderCircle className="size-4 animate-spin text-sky-300" />
+            {viewMode === "buyList"
+              ? "Scanning U.S. stocks for 1-year Pass + BUY…"
+              : "Loading forecasts…"}
+          </div>
         )}
 
         {loading && !run && (
@@ -358,42 +428,54 @@ export function Dashboard() {
           </div>
         )}
 
-        {quote && (
+        {run && (
           <>
             <section className="space-y-3">
               <div>
-                <h2 className="text-lg font-semibold tracking-tight">Suggestions</h2>
+                <h2 className="text-lg font-semibold tracking-tight">
+                  {viewMode === "buyList" ? "Suggested buys" : "Suggestions"}
+                </h2>
                 <p className="text-sm text-white/45">
-                  Stocks with per-model suggestions — rows start collapsed; tap to expand a chart.
+                  {viewMode === "buyList"
+                    ? "U.S. universe scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
+                    : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
               </div>
 
+              {error && viewMode === "buyList" ? (
+                <p className="text-xs text-amber-200/80">{error}</p>
+              ) : null}
+
               <StockSummaryTable
-                quotes={run?.quotes ?? []}
+                quotes={run.quotes}
                 active={active}
                 onSelect={setActive}
                 onTrade={tradeSignal}
                 onTradeAll={tradeAllSignals}
+                mode={viewMode}
+                scanMeta={scanMeta}
               />
             </section>
 
-            <section className="space-y-3">
-              <div>
-                <h2 className="text-lg font-semibold tracking-tight">Models</h2>
-                <p className="text-sm text-white/45">
-                  Weight mix for {quote.symbol} · hit {(quote.metrics.hitRate * 100).toFixed(0)}% · Sharpe{" "}
-                  {quote.backtest.sharpe.toFixed(2)}
-                </p>
-              </div>
+            {quote ? (
+              <section className="space-y-3">
+                <div>
+                  <h2 className="text-lg font-semibold tracking-tight">Models</h2>
+                  <p className="text-sm text-white/45">
+                    Weight mix for {quote.symbol} · hit {(quote.metrics.hitRate * 100).toFixed(0)}% · Sharpe{" "}
+                    {quote.backtest.sharpe.toFixed(2)}
+                  </p>
+                </div>
 
-              <ModelGuidePanel quote={quote} />
+                <ModelGuidePanel quote={quote} />
 
-              <Card className="bg-[#10161d]">
-                <CardContent className="pt-5">
-                  <ModelWeightsPanel quote={quote} />
-                </CardContent>
-              </Card>
-            </section>
+                <Card className="bg-[#10161d]">
+                  <CardContent className="pt-5">
+                    <ModelWeightsPanel quote={quote} />
+                  </CardContent>
+                </Card>
+              </section>
+            ) : null}
           </>
         )}
 

@@ -46,11 +46,13 @@ npm run dev
 Open [http://localhost:43123](http://localhost:43123).
 
 - Desk (`/`) — forecasts, ticker selection (saved in the browser), paper trades
+- **Scan US buys** — scans the liquid U.S. universe, keeps only 1-year backtest **Pass** + ensemble **BUY**, sorted by model hit rate (high → low)
 - Trade records (`/trades`) — full list of every saved fill
 
 ## API
 
 - `GET /api/run?symbols=AAPL,MSFT&horizon=21`
+- `GET /api/scan?horizon=21` — U.S. buy list (pass + BUY, hit-rate sorted)
 - `GET /api/verify?force=1`
 - `GET /api/search?q=nvidia`
 
