@@ -119,7 +119,7 @@ export function applyTrade(portfolio: Portfolio, req: TradeRequest): TradeResult
       portfolio: {
         cash: portfolio.cash - needed,
         positions: nextPositions,
-        fills: [fill, ...portfolio.fills].slice(0, 50),
+        fills: [fill, ...portfolio.fills],
       },
     };
   }
@@ -151,7 +151,7 @@ export function applyTrade(portfolio: Portfolio, req: TradeRequest): TradeResult
     portfolio: {
       cash: portfolio.cash + proceeds,
       positions: nextPositions,
-      fills: [fill, ...portfolio.fills].slice(0, 50),
+      fills: [fill, ...portfolio.fills],
     },
   };
 }
@@ -168,7 +168,12 @@ export function sharesForWeight(equityValue: number, price: number, weight: numb
 }
 
 export function resetPortfolio(): Portfolio {
-  const next = emptyPortfolio();
+  const current = typeof window !== "undefined" ? loadPortfolio() : emptyPortfolio();
+  const next: Portfolio = {
+    cash: STARTING_CASH,
+    positions: [],
+    fills: current.fills,
+  };
   if (typeof window !== "undefined") savePortfolio(next);
   return next;
 }

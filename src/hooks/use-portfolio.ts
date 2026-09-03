@@ -68,7 +68,7 @@ export function usePortfolio(marks: Record<string, number>) {
 
   const reset = useCallback(() => {
     persist(resetPortfolio());
-    setMessage("Paper book reset to $100,000 cash.");
+    setMessage("Paper book reset to $100,000 cash. Trade records kept.");
   }, []);
 
   return {

@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import {
-  Activity,
   ArrowDownRight,
   ArrowUpRight,
   LoaderCircle,
@@ -11,6 +11,7 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
+import { AppNav } from "@/components/app-nav";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
@@ -21,9 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { clsxSign, formatCompact, formatMoney, formatPct, formatPrice } from "@/lib/format";
+import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse, TradeSignal } from "@/lib/types";
-import { DEFAULT_SYMBOLS, UNIVERSE } from "@/lib/universe";
+import { UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
 const HORIZONS: { value: Horizon; label: string }[] = [
@@ -42,9 +44,11 @@ function signalClass(signal: TradeSignal): string {
 }
 
 export function Dashboard() {
-  const [symbols, setSymbols] = useState<string[]>(DEFAULT_SYMBOLS);
-  const [active, setActive] = useState<string>(DEFAULT_SYMBOLS[0]);
-  const [horizon, setHorizon] = useState<Horizon>(21);
+  const defaults = defaultSelection();
+  const [symbols, setSymbols] = useState<string[]>(defaults.symbols);
+  const [active, setActive] = useState<string>(defaults.active);
+  const [horizon, setHorizon] = useState<Horizon>(defaults.horizon);
+  const [selectionReady, setSelectionReady] = useState(false);
   const [run, setRun] = useState<RunResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,6 +115,20 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
+    const saved = loadSelection();
+    setSymbols(saved.symbols);
+    setActive(saved.active);
+    setHorizon(saved.horizon);
+    setSelectionReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!selectionReady) return;
+    saveSelection({ symbols, active, horizon });
+  }, [symbols, active, horizon, selectionReady]);
+
+  useEffect(() => {
+    if (!selectionReady) return;
     const timer = window.setTimeout(() => {
       void load(symbols, horizon);
     }, 0);
@@ -118,7 +136,7 @@ export function Dashboard() {
       window.clearTimeout(timer);
       requestSeq.current += 1;
     };
-  }, [symbols, horizon, load]);
+  }, [symbols, horizon, load, selectionReady]);
 
   useEffect(() => {
     const q = query.trim();
@@ -230,30 +248,36 @@ export function Dashboard() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-20 border-b border-white/8 bg-[#0b1016]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1100px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex size-9 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/25">
-              <Activity className="size-4" />
-            </div>
-            <div>
-              <div className="text-sm font-semibold tracking-tight">Signal Desk</div>
-              <div className="text-[11px] text-white/45">
-                Paper forecasts
-                {run ? ` · ${readyCount}/${run.quotes.length} trade-ready` : ""}
-              </div>
-            </div>
-          </div>
+      <AppNav
+        subtitle={
+          run
+            ? `Paper forecasts · ${readyCount}/${run.quotes.length} trade-ready · selection saved`
+            : "Paper forecasts · selection saved in this browser"
+        }
+        right={
           <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
             <Stat label="Equity" value={formatMoney(book.equity)} />
             <Stat label="Cash" value={formatMoney(book.portfolio.cash)} />
             <Stat label="P&L" value={formatMoney(pnl)} hint={formatPct(pnlPct)} tone={pnl} />
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
         <section className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-white/40">
+              Tickers stay saved here. Full trade list lives on{" "}
+              <Link href="/trades" className="text-sky-300 hover:underline">
+                Trade records
+              </Link>
+              .
+            </p>
+            <Link href="/trades" className="text-xs text-sky-300/90 hover:underline">
+              {book.portfolio.fills.length} trade record
+              {book.portfolio.fills.length === 1 ? "" : "s"} →
+            </Link>
+          </div>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
             <div ref={searchRef} className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/35" />

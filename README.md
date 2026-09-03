@@ -45,6 +45,9 @@ npm run dev
 
 Open [http://localhost:43123](http://localhost:43123).
 
+- Desk (`/`) — forecasts, ticker selection (saved in the browser), paper trades
+- Trade records (`/trades`) — full list of every saved fill
+
 ## API
 
 - `GET /api/run?symbols=AAPL,MSFT&horizon=21`
