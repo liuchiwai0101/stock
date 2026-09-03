@@ -1,8 +1,10 @@
 "use client";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DEFAULT_GATES } from "@/lib/backtest";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
 import { MODEL_LABELS } from "@/lib/forecast";
+import { MODEL_CATALOG } from "@/lib/model-catalog";
 import type { CompanyForecast, ModelBreakdown, ModelId } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +24,87 @@ const MODEL_COLORS: Record<ModelId, string> = {
   ewma: "bg-lime-400",
   regime: "bg-fuchsia-400",
 };
+
+const CHECKS = [
+  {
+    title: "Finite forecast path",
+    detail: "Each model must return a full horizon of finite prices — no NaN or broken paths.",
+  },
+  {
+    title: "Walk-forward RMSE",
+    detail: "Lower recent forecast error earns higher ensemble weight (softmax over inverse RMSE).",
+  },
+  {
+    title: "Direction hit rate",
+    detail: `Model must call the right up/down move often enough (gate ≥ ${(DEFAULT_GATES.minHitRate * 100).toFixed(0)}%).`,
+  },
+  {
+    title: "1-year backtest gates",
+    detail: `Strategy Sharpe ≥ ${DEFAULT_GATES.minSharpe}, max drawdown ≤ ${(DEFAULT_GATES.maxDrawdown * 100).toFixed(0)}%, enough round-trips, or clear alpha vs buy-and-hold.`,
+  },
+  {
+    title: "Live-ready lock",
+    detail: "If the ticker’s 1-year backtest fails, automated BUY/SELL is forced to HOLD (manual paper trades still allowed).",
+  },
+];
+
+export function ModelGuidePanel({ quote }: { quote: CompanyForecast }) {
+  const models = quote.models?.length
+    ? quote.models
+    : MODEL_CATALOG.map((m) => ({
+        ...m,
+        weight: quote.weights[m.id] ?? 0,
+        hitRate: 0,
+        targetPrice: quote.last,
+        expectedReturn: 0,
+        rmse: 0,
+        mape: 0,
+      }));
+
+  return (
+    <Card className="bg-[#10161d]">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">What each model does and what we check</CardTitle>
+        <CardDescription>
+          Plain-language roles for {quote.symbol}, plus the gates that unlock automated signals.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div className="grid gap-3 sm:grid-cols-2">
+          {models.map((m) => (
+            <div key={m.id} className="rounded-lg border border-white/8 bg-white/2 px-3 py-2.5">
+              <div className="mb-1 flex items-center gap-2">
+                <span className={cn("size-2 shrink-0 rounded-full", MODEL_COLORS[m.id])} />
+                <span className="text-sm font-medium">{m.label}</span>
+                <span className="ml-auto font-mono text-[10px] text-white/40">
+                  {(m.weight * 100).toFixed(0)}% wt
+                </span>
+              </div>
+              <p className="text-[12px] leading-snug text-white/65">{m.purpose}</p>
+              <p className="mt-1.5 text-[11px] leading-snug text-white/40">{m.description}</p>
+            </div>
+          ))}
+        </div>
+
+        <div>
+          <div className="mb-2 text-[11px] tracking-wide text-white/40 uppercase">Checks before auto-trade</div>
+          <ul className="space-y-2">
+            {CHECKS.map((c) => (
+              <li key={c.title} className="rounded-lg border border-white/8 bg-black/20 px-3 py-2">
+                <div className="text-sm font-medium text-white/85">{c.title}</div>
+                <p className="mt-0.5 text-[12px] leading-snug text-white/50">{c.detail}</p>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-white/40">
+            Current ticker: {quote.liveReady ? "backtest cleared — signals live" : "backtest failed — auto-trade blocked"}
+            {" · "}hit {(quote.metrics.hitRate * 100).toFixed(0)}% · Sharpe {quote.backtest.sharpe.toFixed(2)}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function ModelWeightsPanel({ quote }: { quote: CompanyForecast }) {
   const models = quote.models?.length

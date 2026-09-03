@@ -13,8 +13,7 @@ import {
 } from "lucide-react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockSummaryTable } from "@/components/stock-summary-table";
-import { ModelWeightsPanel } from "@/components/analysis-panels";
-import { VerificationBanner } from "@/components/verification-banner";
+import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -526,7 +525,7 @@ export function Dashboard() {
                 </p>
               </div>
 
-              {run?.verification && <VerificationBanner verification={run.verification} />}
+              <ModelGuidePanel quote={quote} />
 
               <Card className="bg-[#10161d]">
                 <CardContent className="pt-5">
