@@ -364,7 +364,7 @@ export function Dashboard() {
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Suggestions</h2>
                 <p className="text-sm text-white/45">
-                  Stocks with per-model suggestions — select a row to expand its chart in the table.
+                  Stocks with per-model suggestions — rows start collapsed; tap to expand a chart.
                 </p>
               </div>
 
