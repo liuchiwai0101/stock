@@ -105,6 +105,7 @@ export function Dashboard() {
     setLoading(true);
     setError(null);
     setViewMode("buyList");
+    setScanMeta(null);
     try {
       const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
       const json = (await res.json()) as RunResponse & {
@@ -122,7 +123,7 @@ export function Dashboard() {
         buyCount: json.buyCount ?? json.quotes.length,
       });
       setActive((prev) =>
-        json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? prev),
+        json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? ""),
       );
       if (json.errors?.length) {
         setError(
@@ -157,9 +158,10 @@ export function Dashboard() {
     const timer = window.setTimeout(() => {
       void load(symbols, horizon);
     }, 0);
+    // Only cancel the scheduled timer — do not bump requestSeq here.
+    // Bumping on viewMode→buyList cleanup was discarding in-flight scan results.
     return () => {
       window.clearTimeout(timer);
-      requestSeq.current += 1;
     };
   }, [symbols, horizon, load, selectionReady, viewMode]);
 
