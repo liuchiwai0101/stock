@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockSummaryTable } from "@/components/stock-summary-table";
-import { ModelResultsTable, ModelWeightsPanel } from "@/components/analysis-panels";
+import { ModelWeightsPanel } from "@/components/analysis-panels";
 import { VerificationBanner } from "@/components/verification-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -373,7 +373,9 @@ export function Dashboard() {
             <section className="space-y-3">
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Suggestions</h2>
-                <p className="text-sm text-white/45">Select a row for chart and trade.</p>
+                <p className="text-sm text-white/45">
+                  Each stock with ensemble and per-model suggestion values — select a row for chart and trade.
+                </p>
               </div>
 
               <StockSummaryTable
@@ -519,7 +521,7 @@ export function Dashboard() {
               <div>
                 <h2 className="text-lg font-semibold tracking-tight">Models</h2>
                 <p className="text-sm text-white/45">
-                  Ensemble for {quote.symbol} · hit {(quote.metrics.hitRate * 100).toFixed(0)}% · Sharpe{" "}
+                  Weight mix for {quote.symbol} · hit {(quote.metrics.hitRate * 100).toFixed(0)}% · Sharpe{" "}
                   {quote.backtest.sharpe.toFixed(2)}
                 </p>
               </div>
@@ -531,12 +533,6 @@ export function Dashboard() {
                   <ModelWeightsPanel quote={quote} />
                 </CardContent>
               </Card>
-
-              <ModelResultsTable
-                models={quote.models}
-                last={quote.last}
-                ensembleTarget={quote.targetPrice}
-              />
             </section>
           </>
         )}

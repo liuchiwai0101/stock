@@ -1,15 +1,33 @@
 "use client";
 
+import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
-import type { CompanyForecast, TradeSignal } from "@/lib/types";
+import type { CompanyForecast, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const MODEL_COLUMNS: { id: ModelId; short: string }[] = [
+  { id: "holt", short: "Holt" },
+  { id: "ols", short: "OLS" },
+  { id: "ar1", short: "AR1" },
+  { id: "momentum", short: "Mom" },
+  { id: "garch", short: "GARCH" },
+  { id: "kalman", short: "Kalman" },
+  { id: "arima", short: "ARIMA" },
+  { id: "ou", short: "OU" },
+  { id: "ewma", short: "EWMA" },
+  { id: "regime", short: "Regime" },
+];
 
 function signalClass(signal: TradeSignal): string {
   if (signal === "BUY") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/20";
   if (signal === "SELL") return "bg-rose-500/15 text-rose-300 border-rose-500/20";
   return "bg-white/5 text-white/60 border-white/10";
+}
+
+function modelSuggestion(q: CompanyForecast, id: ModelId) {
+  return q.models?.find((m) => m.id === id) ?? null;
 }
 
 export function StockSummaryTable({
@@ -26,13 +44,20 @@ export function StockSummaryTable({
   onTradeAll: () => void;
 }) {
   const tradable = quotes.some((q) => q.liveReady && q.signal !== "HOLD");
+  const modelCols = useMemo(() => {
+    const present = new Set(quotes.flatMap((q) => (q.models ?? []).map((m) => m.id)));
+    if (present.size === 0) return MODEL_COLUMNS;
+    return MODEL_COLUMNS.filter((c) => present.has(c.id));
+  }, [quotes]);
 
   return (
     <Card className="bg-[#10161d]">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div>
-          <CardTitle className="text-base">All stocks</CardTitle>
-          <CardDescription>Price, target, signal, backtest</CardDescription>
+          <CardTitle className="text-base">All stocks × models</CardTitle>
+          <CardDescription>
+            Ensemble signal plus each model&apos;s expected return suggestion
+          </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
           Trade verified
@@ -42,15 +67,19 @@ export function StockSummaryTable({
         {quotes.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/45">Add tickers and run the model.</p>
         ) : (
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[1100px] text-left text-sm">
             <thead className="text-[10px] tracking-wide text-white/40 uppercase">
               <tr className="border-b border-white/8">
-                <th className="py-2 pr-3 font-medium">Stock</th>
+                <th className="sticky left-0 z-10 bg-[#10161d] py-2 pr-3 font-medium">Stock</th>
                 <th className="py-2 pr-3 font-medium">Last</th>
-                <th className="py-2 pr-3 font-medium">Target</th>
-                <th className="py-2 pr-3 font-medium">Exp.</th>
+                <th className="py-2 pr-3 font-medium">Ensemble</th>
                 <th className="py-2 pr-3 font-medium">Signal</th>
                 <th className="py-2 pr-3 font-medium">BT</th>
+                {modelCols.map((c) => (
+                  <th key={c.id} className="py-2 pr-3 font-medium whitespace-nowrap">
+                    {c.short}
+                  </th>
+                ))}
                 <th className="py-2 font-medium" />
               </tr>
             </thead>
@@ -63,19 +92,26 @@ export function StockSummaryTable({
                     q.symbol === active && "bg-white/3",
                   )}
                 >
-                  <td className="py-2.5 pr-3">
+                  <td
+                    className={cn(
+                      "sticky left-0 z-10 py-2.5 pr-3",
+                      q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
+                    )}
+                  >
                     <button type="button" onClick={() => onSelect(q.symbol)} className="text-left">
                       <div className="font-medium">{q.symbol}</div>
-                      <div className="max-w-[120px] truncate text-[11px] text-white/40">{q.name}</div>
+                      <div className="max-w-[110px] truncate text-[11px] text-white/40">{q.name}</div>
                     </button>
                   </td>
                   <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
                     {formatPrice(q.last)}
                     <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
                   </td>
-                  <td className="py-2.5 pr-3 font-mono whitespace-nowrap">{formatPrice(q.targetPrice)}</td>
-                  <td className={cn("py-2.5 pr-3 font-mono whitespace-nowrap", clsxSign(q.expectedReturn))}>
-                    {formatPct(q.expectedReturn)}
+                  <td className="py-2.5 pr-3 font-mono whitespace-nowrap">
+                    {formatPrice(q.targetPrice)}
+                    <div className={cn("text-[11px]", clsxSign(q.expectedReturn))}>
+                      {formatPct(q.expectedReturn)}
+                    </div>
                   </td>
                   <td className="py-2.5 pr-3">
                     <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
@@ -87,6 +123,26 @@ export function StockSummaryTable({
                       {q.liveReady ? "Pass" : "Fail"}
                     </span>
                   </td>
+                  {modelCols.map((c) => {
+                    const m = modelSuggestion(q, c.id);
+                    if (!m) {
+                      return (
+                        <td key={c.id} className="py-2.5 pr-3 font-mono text-white/30">
+                          —
+                        </td>
+                      );
+                    }
+                    return (
+                      <td
+                        key={c.id}
+                        className="py-2.5 pr-3 font-mono whitespace-nowrap"
+                        title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
+                      >
+                        <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
+                        <div className="text-[10px] text-white/35">{formatPrice(m.targetPrice)}</div>
+                      </td>
+                    );
+                  })}
                   <td className="py-2.5 text-right">
                     <Button
                       size="xs"
