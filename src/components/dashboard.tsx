@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { chineseStockName } from "@/lib/chinese-names";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
@@ -377,10 +378,17 @@ export function Dashboard() {
                       key={hit.symbol}
                       type="button"
                       onClick={() => addSymbol(hit.symbol)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/6"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white/6"
                     >
-                      <span className="font-medium">{hit.symbol}</span>
-                      <span className="truncate pl-4 text-xs text-white/50">{hit.name}</span>
+                      <span className="min-w-0">
+                        <span className="font-medium">{hit.symbol}</span>
+                        <span className="block truncate text-xs text-white/50">{hit.name}</span>
+                        {chineseStockName(hit.symbol) ? (
+                          <span className="block truncate text-[11px] text-amber-200/70">
+                            {chineseStockName(hit.symbol)}
+                          </span>
+                        ) : null}
+                      </span>
                     </button>
                   ))}
                 </div>

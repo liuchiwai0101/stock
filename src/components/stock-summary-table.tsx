@@ -2,6 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import { ForecastChart } from "@/components/forecast-chart";
+import { StockNameLines } from "@/components/stock-name";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
@@ -150,11 +151,8 @@ export function StockSummaryTable({
                         )}
                       >
                         <button type="button" onClick={() => toggleRow(q.symbol)} className="text-left">
-                          <div className="font-medium">
-                            <span className="mr-1 inline-block w-3 text-white/35">{isOpen ? "▾" : "▸"}</span>
-                            {q.symbol}
-                          </div>
-                          <div className="max-w-[120px] truncate pl-4 text-[11px] text-white/40">{q.name}</div>
+                          <span className="mr-1 inline-block w-3 text-white/35">{isOpen ? "▾" : "▸"}</span>
+                          <StockNameLines symbol={q.symbol} name={q.name} compact />
                         </button>
                       </td>
                       <td className="py-2.5 pr-3 font-mono whitespace-nowrap">

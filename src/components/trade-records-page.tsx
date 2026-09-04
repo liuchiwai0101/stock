@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { chineseStockName } from "@/lib/chinese-names";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePortfolio } from "@/hooks/use-portfolio";
@@ -142,6 +143,11 @@ export function TradeRecordsPage() {
                       <td className="py-2.5 pr-3">
                         <div className="font-medium">{f.symbol}</div>
                         <div className="max-w-[140px] truncate text-[11px] text-white/40">{f.name}</div>
+                        {chineseStockName(f.symbol) ? (
+                          <div className="max-w-[140px] truncate text-[10px] text-amber-200/70">
+                            {chineseStockName(f.symbol)}
+                          </div>
+                        ) : null}
                       </td>
                       <td className="py-2.5 pr-3 font-mono">{f.shares}</td>
                       <td className="py-2.5 pr-3 font-mono">{formatPrice(f.price)}</td>
