@@ -68,6 +68,62 @@ export type TradeResult =
   | { ok: true; portfolio: Portfolio; fill: Fill }
   | { ok: false; message: string; portfolio: Portfolio };
 
+export type AggregatedTrade = {
+  symbol: string;
+  name: string;
+  buyShares: number;
+  sellShares: number;
+  netShares: number;
+  buyNotional: number;
+  sellNotional: number;
+  avgBuyPrice: number | null;
+  avgSellPrice: number | null;
+  fillCount: number;
+  lastAt: string;
+};
+
+export function aggregateTradesBySymbol(fills: Fill[]): AggregatedTrade[] {
+  const bySymbol = new Map<string, AggregatedTrade>();
+
+  for (const fill of fills) {
+    const existing = bySymbol.get(fill.symbol);
+    const row: AggregatedTrade = existing ?? {
+      symbol: fill.symbol,
+      name: fill.name,
+      buyShares: 0,
+      sellShares: 0,
+      netShares: 0,
+      buyNotional: 0,
+      sellNotional: 0,
+      avgBuyPrice: null,
+      avgSellPrice: null,
+      fillCount: 0,
+      lastAt: fill.at,
+    };
+
+    row.fillCount += 1;
+    if (fill.at > row.lastAt) {
+      row.lastAt = fill.at;
+      row.name = fill.name;
+    }
+
+    if (fill.side === "BUY") {
+      row.buyShares += fill.shares;
+      row.buyNotional += fill.notional;
+    } else {
+      row.sellShares += fill.shares;
+      row.sellNotional += fill.notional;
+    }
+
+    row.netShares = row.buyShares - row.sellShares;
+    row.avgBuyPrice = row.buyShares > 0 ? row.buyNotional / row.buyShares : null;
+    row.avgSellPrice = row.sellShares > 0 ? row.sellNotional / row.sellShares : null;
+    bySymbol.set(fill.symbol, row);
+  }
+
+  return [...bySymbol.values()].sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+}
+
 export function applyTrade(portfolio: Portfolio, req: TradeRequest): TradeResult {
   const shares = Math.floor(req.shares);
   if (shares <= 0) return { ok: false, message: "Share count must be at least 1.", portfolio };

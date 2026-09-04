@@ -57,6 +57,12 @@ export function Dashboard() {
   }, [run]);
 
   const book = usePortfolio(marks);
+
+  const heldShares = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const p of book.portfolio.positions) m[p.symbol] = p.shares;
+    return m;
+  }, [book.portfolio.positions]);
   const quote = run?.quotes.find((q) => q.symbol === active) ?? run?.quotes[0] ?? null;
   const visibleHits = query.trim() ? hits : [];
 
@@ -297,54 +303,54 @@ export function Dashboard() {
     });
   }
 
-  function signalOrder(q: CompanyForecast) {
-    const rec = Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight));
-    const note = `Model ${q.signal} · ${formatPct(q.expectedReturn)} over ${horizon}d`;
-    if (q.signal === "BUY") {
-      return {
-        symbol: q.symbol,
-        name: q.name,
-        side: "BUY" as const,
-        shares: rec,
-        price: q.last,
-        note,
-      };
+  function buyStock(q: CompanyForecast) {
+    if (!q.liveReady) {
+      book.notify(`${q.symbol}: 1-year backtest failed — buy blocked until verification passes.`);
+      return;
     }
-    if (q.signal === "SELL") {
-      const held = book.portfolio.positions.find((p) => p.symbol === q.symbol)?.shares ?? 0;
-      if (held <= 0) return null;
-      return {
-        symbol: q.symbol,
-        name: q.name,
-        side: "SELL" as const,
-        shares: Math.min(held, rec),
-        price: q.last,
-        note,
-      };
-    }
-    return null;
+    const shares = Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight));
+    book.trade({
+      symbol: q.symbol,
+      name: q.name,
+      side: "BUY",
+      shares,
+      price: q.last,
+      note: `Paper buy · ${formatPct(q.expectedReturn)} over ${horizon}d`,
+    });
   }
 
-  function tradeSignal(q: CompanyForecast) {
-    if (!q.liveReady) {
-      book.notify(`${q.symbol}: 1-year backtest failed — signal blocked until verification passes.`);
+  function sellStock(q: CompanyForecast) {
+    const held = heldShares[q.symbol] ?? 0;
+    if (held <= 0) {
+      book.notify(`No ${q.symbol} shares to sell.`);
       return;
     }
-    if (q.signal === "HOLD") return;
-    const order = signalOrder(q);
-    if (!order) {
-      book.notify(`No ${q.symbol} shares to sell — this desk does not short.`);
-      return;
-    }
-    book.trade(order);
+    book.trade({
+      symbol: q.symbol,
+      name: q.name,
+      side: "SELL",
+      shares: held,
+      price: q.last,
+      note: `Paper sell · closed ${held} sh`,
+    });
   }
 
   function tradeAllSignals() {
     const orders = (run?.quotes ?? [])
-      .map(signalOrder)
-      .filter((o): o is NonNullable<typeof o> => o !== null);
+      .filter((q) => q.liveReady && q.signal === "BUY")
+      .map((q) => {
+        const shares = Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight));
+        return {
+          symbol: q.symbol,
+          name: q.name,
+          side: "BUY" as const,
+          shares,
+          price: q.last,
+          note: `Model BUY · ${formatPct(q.expectedReturn)} over ${horizon}d`,
+        };
+      });
     if (orders.length === 0) {
-      book.notify("No tradable signals. BUY names size automatically; SELL needs an open long.");
+      book.notify("No verified BUY signals to trade.");
       return;
     }
     book.tradeMany(orders);
@@ -561,8 +567,10 @@ export function Dashboard() {
                 quotes={run.quotes}
                 active={active}
                 onSelect={setActive}
-                onTrade={tradeSignal}
+                onBuy={buyStock}
+                onSell={sellStock}
                 onTradeAll={tradeAllSignals}
+                heldShares={heldShares}
                 mode={viewMode}
                 scanMeta={scanMeta}
               />

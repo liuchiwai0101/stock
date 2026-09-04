@@ -44,7 +44,7 @@ const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
 const NUM_COL = "min-w-[3.75rem] whitespace-nowrap";
 const TAG_COL = "min-w-[4.5rem] whitespace-nowrap";
 const MODEL_COL = "min-w-[4.75rem] whitespace-nowrap";
-const ACTION_COL = "min-w-[4.5rem] whitespace-nowrap";
+const ACTION_COL = "min-w-[7.5rem] whitespace-nowrap";
 
 function signalClass(signal: TradeSignal): string {
   if (signal === "BUY") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/20";
@@ -145,16 +145,20 @@ export function StockSummaryTable({
   quotes,
   active,
   onSelect,
-  onTrade,
+  onBuy,
+  onSell,
   onTradeAll,
+  heldShares = {},
   mode = "watch",
   scanMeta,
 }: {
   quotes: CompanyForecast[];
   active: string;
   onSelect: (symbol: string) => void;
-  onTrade: (q: CompanyForecast) => void;
+  onBuy: (q: CompanyForecast) => void;
+  onSell: (q: CompanyForecast) => void;
   onTradeAll: () => void;
+  heldShares?: Record<string, number>;
   mode?: "watch" | "buyList";
   scanMeta?: { scanned: number; total?: number; passed: number; buyCount: number } | null;
 }) {
@@ -242,7 +246,7 @@ export function StockSummaryTable({
               {modelCols.map((c) => (
                 <col key={c.id} className="w-[4.75rem]" />
               ))}
-              <col className="w-[4.5rem]" />
+              <col className="w-[7.5rem]" />
             </colgroup>
             <thead className="text-[10px] tracking-wide uppercase">
               <tr className="border-b border-white/8">
@@ -413,17 +417,30 @@ export function StockSummaryTable({
                         );
                       })}
                       <td className={cn(ACTION_COL, "py-2 text-right")}>
-                        <Button
-                          size="xs"
-                          variant="outline"
-                          disabled={q.signal === "HOLD" || !q.liveReady}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onTrade(q);
-                          }}
-                        >
-                          Trade
-                        </Button>
+                        <div className="flex justify-end gap-1">
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            disabled={!q.liveReady}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onBuy(q);
+                            }}
+                          >
+                            Buy
+                          </Button>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            disabled={(heldShares[q.symbol] ?? 0) <= 0}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSell(q);
+                            }}
+                          >
+                            Sell
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                     {isOpen ? (
