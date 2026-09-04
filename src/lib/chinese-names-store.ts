@@ -5,6 +5,7 @@ const STORAGE_KEY = "signal-desk-chinese-names-v1";
 type RuntimeCache = Record<string, string>;
 
 let runtimeCache: RuntimeCache | null = null;
+let mergedSnapshot: RuntimeCache = { ...CHINESE_NAMES };
 const listeners = new Set<() => void>();
 
 function emit() {
@@ -26,11 +27,16 @@ function loadRuntimeCache(): RuntimeCache {
   return runtimeCache;
 }
 
+function refreshMergedSnapshot() {
+  mergedSnapshot = { ...CHINESE_NAMES, ...loadRuntimeCache() };
+}
+
 function saveRuntimeCache(cache: RuntimeCache) {
   runtimeCache = cache;
   if (typeof window !== "undefined") {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
   }
+  refreshMergedSnapshot();
   emit();
 }
 
@@ -39,8 +45,12 @@ export function subscribeChineseNames(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
+/** Stable reference for useSyncExternalStore — only changes when names are merged. */
 export function getMergedChineseNames(): RuntimeCache {
-  return { ...CHINESE_NAMES, ...loadRuntimeCache() };
+  if (typeof window !== "undefined" && runtimeCache === null) {
+    refreshMergedSnapshot();
+  }
+  return mergedSnapshot;
 }
 
 export function mergeChineseNames(names: Record<string, string>) {
