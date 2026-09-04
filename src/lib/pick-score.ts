@@ -13,6 +13,7 @@ export type DailyPick = {
   pickScore: number;
   modelBuyVotes: number;
   modelCount: number;
+  recommendedWeight: number;
   signal: CompanyForecast["signal"];
   liveReady: boolean;
 };
@@ -55,6 +56,7 @@ export function toDailyPick(q: CompanyForecast, rank: number, pickScore: number)
     pickScore,
     modelBuyVotes,
     modelCount: models.length,
+    recommendedWeight: q.recommendedWeight,
     signal: q.signal,
     liveReady: q.liveReady,
   };

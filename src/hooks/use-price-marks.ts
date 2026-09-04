@@ -12,7 +12,7 @@ export type LiveQuote = {
 
 const POLL_MS = 60_000;
 
-export function usePriceMarks(symbols: string[], enabled = true) {
+export function usePriceMarks(symbols: string[], enabled = true, pollMs?: number) {
   const key = useMemo(() => [...new Set(symbols)].sort().join(","), [symbols]);
   const [quotes, setQuotes] = useState<LiveQuote[]>([]);
   const [loading, setLoading] = useState(false);
@@ -51,10 +51,11 @@ export function usePriceMarks(symbols: string[], enabled = true) {
 
   useEffect(() => {
     if (!enabled || !key) return;
+    const interval = pollMs ?? POLL_MS;
     queueMicrotask(() => void refresh());
-    const id = window.setInterval(() => void refresh(), POLL_MS);
+    const id = window.setInterval(() => void refresh(), interval);
     return () => window.clearInterval(id);
-  }, [enabled, key, refresh]);
+  }, [enabled, key, refresh, pollMs]);
 
   const marks = useMemo(() => {
     const m: Record<string, number> = {};
@@ -68,5 +69,5 @@ export function usePriceMarks(symbols: string[], enabled = true) {
     return m;
   }, [quotes]);
 
-  return { quotes, marks, quoteMap, loading, error, updatedAt, refresh };
+  return { quotes, marks, quoteMap, loading, error, updatedAt, refresh, pollMs: pollMs ?? POLL_MS };
 }
