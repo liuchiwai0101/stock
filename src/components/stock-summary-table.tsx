@@ -37,9 +37,14 @@ type SortColumn =
 type SortDir = "asc" | "desc";
 
 const RANK_COL = "w-10 min-w-10 max-w-10";
-const STOCK_COL = "w-36 min-w-36 max-w-36";
+const STOCK_COL = "w-[9.5rem] min-w-[9.5rem] max-w-[9.5rem]";
 const STICKY_RANK = "sticky left-0 z-20";
 const STICKY_STOCK = "sticky left-10 z-20";
+const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
+const NUM_COL = "min-w-[3.75rem] whitespace-nowrap";
+const TAG_COL = "min-w-[4.5rem] whitespace-nowrap";
+const MODEL_COL = "min-w-[4.75rem] whitespace-nowrap";
+const ACTION_COL = "min-w-[4.5rem] whitespace-nowrap";
 
 function signalClass(signal: TradeSignal): string {
   if (signal === "BUY") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/20";
@@ -222,12 +227,23 @@ export function StockSummaryTable({
               : "Add tickers and run the model."}
           </p>
         ) : (
-          <table
-            className={cn(
-              "w-full table-fixed text-left text-sm",
-              buyList ? "min-w-[720px]" : "min-w-[1100px]",
-            )}
-          >
+          <table className="w-max min-w-full text-left text-sm">
+            <colgroup>
+              <col className="w-10" />
+              <col className="w-[9.5rem]" />
+              <col className="w-[5.5rem]" />
+              <col className="w-[5.5rem]" />
+              <col className="w-[4.5rem]" />
+              <col className="w-[3.75rem]" />
+              {buyList ? <col className="w-[3.75rem]" /> : null}
+              {buyList ? <col className="w-[4.5rem]" /> : null}
+              <col className="w-[4.5rem]" />
+              <col className="w-[3.75rem]" />
+              {modelCols.map((c) => (
+                <col key={c.id} className="w-[4.75rem]" />
+              ))}
+              <col className="w-[4.5rem]" />
+            </colgroup>
             <thead className="text-[10px] tracking-wide uppercase">
               <tr className="border-b border-white/8">
                 <th
@@ -246,22 +262,65 @@ export function StockSummaryTable({
                   onSort={toggleSort}
                   className={cn(STOCK_COL, STICKY_STOCK, "bg-[#10161d]")}
                 />
-                <SortHeader label="Last" column="last" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Target" column="target" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Exp." column="exp" sort={sort} onSort={toggleSort} />
-                <SortHeader label="Hit" column="hit" sort={sort} onSort={toggleSort} />
+                <SortHeader
+                  label="Last"
+                  column="last"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className={PRICE_COL}
+                />
+                <SortHeader
+                  label="Target"
+                  column="target"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className={PRICE_COL}
+                />
+                <SortHeader
+                  label="Exp."
+                  column="exp"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className={NUM_COL}
+                />
+                <SortHeader label="Hit" column="hit" sort={sort} onSort={toggleSort} className={NUM_COL} />
                 {buyList ? (
-                  <SortHeader label="Conf." column="conf" sort={sort} onSort={toggleSort} />
+                  <SortHeader
+                    label="Conf."
+                    column="conf"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className={NUM_COL}
+                  />
                 ) : null}
                 {buyList ? (
-                  <SortHeader label="Sharpe" column="sharpe" sort={sort} onSort={toggleSort} />
+                  <SortHeader
+                    label="Sharpe"
+                    column="sharpe"
+                    sort={sort}
+                    onSort={toggleSort}
+                    className={NUM_COL}
+                  />
                 ) : null}
-                <SortHeader label="Signal" column="signal" sort={sort} onSort={toggleSort} />
-                <SortHeader label="BT" column="bt" sort={sort} onSort={toggleSort} />
+                <SortHeader
+                  label="Signal"
+                  column="signal"
+                  sort={sort}
+                  onSort={toggleSort}
+                  className={TAG_COL}
+                />
+                <SortHeader label="BT" column="bt" sort={sort} onSort={toggleSort} className={NUM_COL} />
                 {modelCols.map((c) => (
-                  <SortHeader key={c.id} label={c.short} column={c.id} sort={sort} onSort={toggleSort} />
+                  <SortHeader
+                    key={c.id}
+                    label={c.short}
+                    column={c.id}
+                    sort={sort}
+                    onSort={toggleSort}
+                    className={MODEL_COL}
+                  />
                 ))}
-                <th className="py-2 font-medium text-white/40" />
+                <th className={cn(ACTION_COL, "py-2 font-medium text-white/40")} />
               </tr>
             </thead>
             <tbody>
@@ -302,33 +361,33 @@ export function StockSummaryTable({
                           <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                         </button>
                       </td>
-                      <td className="py-2 pr-3 font-mono whitespace-nowrap">
+                      <td className={cn(PRICE_COL, "py-2 pr-3 font-mono")}>
                         {formatPrice(q.last)}
                         <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
                       </td>
-                      <td className="py-2 pr-3 font-mono whitespace-nowrap">{formatPrice(q.targetPrice)}</td>
-                      <td className={cn("py-2 pr-3 font-mono whitespace-nowrap", clsxSign(q.expectedReturn))}>
+                      <td className={cn(PRICE_COL, "py-2 pr-3 font-mono")}>{formatPrice(q.targetPrice)}</td>
+                      <td className={cn(NUM_COL, "py-2 pr-3 font-mono", clsxSign(q.expectedReturn))}>
                         {formatPct(q.expectedReturn)}
                       </td>
-                      <td className="py-2 pr-3 font-mono text-sky-200 whitespace-nowrap">
+                      <td className={cn(NUM_COL, "py-2 pr-3 font-mono text-sky-200")}>
                         {(q.metrics.hitRate * 100).toFixed(0)}%
                       </td>
                       {buyList ? (
-                        <td className="py-2 pr-3 font-mono text-white/65">
+                        <td className={cn(NUM_COL, "py-2 pr-3 font-mono text-white/65")}>
                           {(q.confidence * 100).toFixed(0)}%
                         </td>
                       ) : null}
                       {buyList ? (
-                        <td className="py-2 pr-3 font-mono text-white/65">
+                        <td className={cn(NUM_COL, "py-2 pr-3 font-mono text-white/65")}>
                           {q.backtest.sharpe.toFixed(2)}
                         </td>
                       ) : null}
-                      <td className="py-2 pr-3">
+                      <td className={cn(TAG_COL, "py-2 pr-3")}>
                         <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
                           {q.signal}
                         </span>
                       </td>
-                      <td className="py-2 pr-3">
+                      <td className={cn(NUM_COL, "py-2 pr-3")}>
                         <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
                           {q.liveReady ? "Pass" : "Fail"}
                         </span>
@@ -337,7 +396,7 @@ export function StockSummaryTable({
                         const m = modelSuggestion(q, c.id);
                         if (!m) {
                           return (
-                            <td key={c.id} className="py-2 pr-3 font-mono text-white/30">
+                            <td key={c.id} className={cn(MODEL_COL, "py-2 pr-3 font-mono text-white/30")}>
                               —
                             </td>
                           );
@@ -345,7 +404,7 @@ export function StockSummaryTable({
                         return (
                           <td
                             key={c.id}
-                            className="py-2 pr-3 font-mono whitespace-nowrap"
+                            className={cn(MODEL_COL, "py-2 pr-3 font-mono")}
                             title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
                           >
                             <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
@@ -353,7 +412,7 @@ export function StockSummaryTable({
                           </td>
                         );
                       })}
-                      <td className="py-2 text-right">
+                      <td className={cn(ACTION_COL, "py-2 text-right")}>
                         <Button
                           size="xs"
                           variant="outline"
