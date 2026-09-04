@@ -223,6 +223,11 @@ export function sharesForWeight(equityValue: number, price: number, weight: numb
   return Math.max(0, Math.floor(dollars / price));
 }
 
+export function sharesFromNotional(notional: number, price: number): number {
+  if (!(price > 0) || !(notional > 0)) return 0;
+  return Math.floor(notional / price);
+}
+
 export function resetPortfolio(): Portfolio {
   const current = typeof window !== "undefined" ? loadPortfolio() : emptyPortfolio();
   const next: Portfolio = {

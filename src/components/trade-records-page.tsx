@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { TradeOrderForm } from "@/components/trade-order-form";
 import { displayStockName } from "@/lib/chinese-names";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +29,7 @@ export function TradeRecordsPage() {
   const book = usePortfolio({});
   const fills = book.portfolio.fills;
   const pnl = book.equity - STARTING_CASH;
+  const [sellEditor, setSellEditor] = useState<string | null>(null);
 
   const aggregated = useMemo(() => aggregateTradesBySymbol(fills), [fills]);
 
@@ -47,18 +49,20 @@ export function TradeRecordsPage() {
   }, [fills, aggregated.length, book.portfolio.positions.length]);
 
   function sellPosition(symbol: string, name: string, shares: number, price: number) {
-    if (shares <= 0) {
-      book.notify(`No ${symbol} shares to sell.`);
+    const qty = Math.floor(shares);
+    if (qty <= 0) {
+      book.notify("Enter at least 1 share to sell.");
       return;
     }
     book.trade({
       symbol,
       name,
       side: "SELL",
-      shares,
+      shares: qty,
       price,
-      note: `Paper sell · closed ${shares} sh`,
+      note: `Paper sell · ${qty} sh`,
     });
+    setSellEditor(null);
   }
 
   return (
@@ -122,7 +126,7 @@ export function TradeRecordsPage() {
           <Card className="bg-[#10161d]">
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Open positions</CardTitle>
-              <CardDescription>Sell closes the full position at book avg cost</CardDescription>
+              <CardDescription>Enter qty or amount · sells at book avg cost</CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
               <table className="w-full min-w-[520px] text-left text-sm">
@@ -148,14 +152,27 @@ export function TradeRecordsPage() {
                       <td className="py-2.5 pr-3 font-mono">{formatPrice(p.avgPrice)}</td>
                       <td className="py-2.5 pr-3 font-mono">{formatMoney(p.shares * p.avgPrice)}</td>
                       <td className="py-2.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
-                          onClick={() => sellPosition(p.symbol, p.name, p.shares, p.avgPrice)}
-                        >
-                          Sell
-                        </Button>
+                        {sellEditor === p.symbol ? (
+                          <TradeOrderForm
+                            side="SELL"
+                            symbol={p.symbol}
+                            price={p.avgPrice}
+                            defaultShares={p.shares}
+                            maxShares={p.shares}
+                            heldLabel={`hold ${p.shares} sh`}
+                            onSubmit={(shares) => sellPosition(p.symbol, p.name, shares, p.avgPrice)}
+                            onCancel={() => setSellEditor(null)}
+                          />
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
+                            onClick={() => setSellEditor(p.symbol)}
+                          >
+                            Sell
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}

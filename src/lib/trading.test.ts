@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { aggregateTradesBySymbol, applyTrade, emptyPortfolio } from "./trading";
+import { aggregateTradesBySymbol, applyTrade, emptyPortfolio, sharesFromNotional } from "./trading";
 
 describe("aggregateTradesBySymbol", () => {
   it("combines multiple fills for the same symbol", () => {
@@ -47,6 +47,13 @@ describe("aggregateTradesBySymbol", () => {
     expect(rows[0].avgBuyPrice).toBeCloseTo(103.333, 2);
     expect(rows[0].avgSellPrice).toBe(120);
     expect(rows[0].fillCount).toBe(3);
+  });
+});
+
+describe("sharesFromNotional", () => {
+  it("converts dollar amount to whole shares at price", () => {
+    expect(sharesFromNotional(1000, 150)).toBe(6);
+    expect(sharesFromNotional(0, 10)).toBe(0);
   });
 });
 

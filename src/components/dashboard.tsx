@@ -303,35 +303,44 @@ export function Dashboard() {
     });
   }
 
-  function buyStock(q: CompanyForecast) {
+  function buyStock(q: CompanyForecast, shares: number) {
     if (!q.liveReady) {
       book.notify(`${q.symbol}: 1-year backtest failed — buy blocked until verification passes.`);
       return;
     }
-    const shares = Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight));
+    const qty = Math.floor(shares);
+    if (qty <= 0) {
+      book.notify("Enter at least 1 share to buy.");
+      return;
+    }
     book.trade({
       symbol: q.symbol,
       name: q.name,
       side: "BUY",
-      shares,
+      shares: qty,
       price: q.last,
-      note: `Paper buy · ${formatPct(q.expectedReturn)} over ${horizon}d`,
+      note: `Paper buy · ${qty} sh · ${formatPct(q.expectedReturn)} over ${horizon}d`,
     });
   }
 
-  function sellStock(q: CompanyForecast) {
+  function sellStock(q: CompanyForecast, shares: number) {
     const held = heldShares[q.symbol] ?? 0;
     if (held <= 0) {
       book.notify(`No ${q.symbol} shares to sell.`);
+      return;
+    }
+    const qty = Math.min(held, Math.floor(shares));
+    if (qty <= 0) {
+      book.notify("Enter at least 1 share to sell.");
       return;
     }
     book.trade({
       symbol: q.symbol,
       name: q.name,
       side: "SELL",
-      shares: held,
+      shares: qty,
       price: q.last,
-      note: `Paper sell · closed ${held} sh`,
+      note: `Paper sell · ${qty} sh`,
     });
   }
 
@@ -571,6 +580,9 @@ export function Dashboard() {
                 onSell={sellStock}
                 onTradeAll={tradeAllSignals}
                 heldShares={heldShares}
+                suggestedShares={(q) =>
+                  Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight))
+                }
                 mode={viewMode}
                 scanMeta={scanMeta}
               />

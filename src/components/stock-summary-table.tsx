@@ -3,6 +3,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockNameInline } from "@/components/stock-name";
+import { TradeOrderForm } from "@/components/trade-order-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
@@ -44,7 +45,9 @@ const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
 const NUM_COL = "min-w-[3.75rem] whitespace-nowrap";
 const TAG_COL = "min-w-[4.5rem] whitespace-nowrap";
 const MODEL_COL = "min-w-[4.75rem] whitespace-nowrap";
-const ACTION_COL = "min-w-[7.5rem] whitespace-nowrap";
+const ACTION_COL = "min-w-[8.5rem] whitespace-nowrap";
+
+type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
 function signalClass(signal: TradeSignal): string {
   if (signal === "BUY") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/20";
@@ -149,21 +152,24 @@ export function StockSummaryTable({
   onSell,
   onTradeAll,
   heldShares = {},
+  suggestedShares,
   mode = "watch",
   scanMeta,
 }: {
   quotes: CompanyForecast[];
   active: string;
   onSelect: (symbol: string) => void;
-  onBuy: (q: CompanyForecast) => void;
-  onSell: (q: CompanyForecast) => void;
+  onBuy: (q: CompanyForecast, shares: number) => void;
+  onSell: (q: CompanyForecast, shares: number) => void;
   onTradeAll: () => void;
   heldShares?: Record<string, number>;
+  suggestedShares?: (q: CompanyForecast) => number;
   mode?: "watch" | "buyList";
   scanMeta?: { scanned: number; total?: number; passed: number; buyCount: number } | null;
 }) {
   const buyList = mode === "buyList";
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [tradeEditor, setTradeEditor] = useState<TradeEditor | null>(null);
   const [sort, setSort] = useState<{ column: SortColumn; dir: SortDir }>({
     column: buyList ? "hit" : "symbol",
     dir: buyList ? "desc" : "asc",
@@ -424,7 +430,7 @@ export function StockSummaryTable({
                             disabled={!q.liveReady}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onBuy(q);
+                              setTradeEditor({ symbol: q.symbol, side: "BUY" });
                             }}
                           >
                             Buy
@@ -435,7 +441,7 @@ export function StockSummaryTable({
                             disabled={(heldShares[q.symbol] ?? 0) <= 0}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onSell(q);
+                              setTradeEditor({ symbol: q.symbol, side: "SELL" });
                             }}
                           >
                             Sell
@@ -443,6 +449,34 @@ export function StockSummaryTable({
                         </div>
                       </td>
                     </tr>
+                    {tradeEditor?.symbol === q.symbol ? (
+                      <tr className="border-b border-white/6 bg-white/[0.02]">
+                        <td colSpan={colCount} className="px-2 py-2 sm:px-3">
+                          <TradeOrderForm
+                            side={tradeEditor.side}
+                            symbol={q.symbol}
+                            price={q.last}
+                            defaultShares={
+                              tradeEditor.side === "BUY"
+                                ? Math.max(1, suggestedShares?.(q) ?? 1)
+                                : (heldShares[q.symbol] ?? 1)
+                            }
+                            maxShares={tradeEditor.side === "SELL" ? heldShares[q.symbol] : undefined}
+                            heldLabel={
+                              tradeEditor.side === "SELL"
+                                ? `hold ${heldShares[q.symbol] ?? 0} sh`
+                                : undefined
+                            }
+                            onSubmit={(shares) => {
+                              if (tradeEditor.side === "BUY") onBuy(q, shares);
+                              else onSell(q, shares);
+                              setTradeEditor(null);
+                            }}
+                            onCancel={() => setTradeEditor(null)}
+                          />
+                        </td>
+                      </tr>
+                    ) : null}
                     {isOpen ? (
                       <tr className="border-b border-white/6 last:border-0 bg-white/[0.02]">
                         <td colSpan={colCount} className="p-0">
