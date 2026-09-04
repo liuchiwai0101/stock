@@ -55,7 +55,7 @@ This app uses Next.js API routes (`/api/run`, `/api/scan`, etc.), so it needs a 
 2. Wait for `npm ci` to finish, then the dev server starts on port **43123**
 3. Open the forwarded port when prompted (or use the **Ports** tab)
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/liuchiwai0101/Stock)
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/liuchiwai0101/stock)
 
 ### GitHub Actions CI
 
