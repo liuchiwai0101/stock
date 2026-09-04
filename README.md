@@ -45,6 +45,36 @@ npm run dev
 
 Open [http://localhost:43123](http://localhost:43123).
 
+## Run on GitHub
+
+This app uses Next.js API routes (`/api/run`, `/api/scan`, etc.), so it needs a Node.js server. GitHub Pages (static hosting) is not supported.
+
+### GitHub Codespaces (recommended)
+
+1. Open the repo on GitHub and click **Code** → **Codespaces** → **Create codespace on main**
+2. Wait for `npm ci` to finish, then the dev server starts on port **43123**
+3. Open the forwarded port when prompted (or use the **Ports** tab)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/liuchiwai0101/Stock)
+
+### GitHub Actions CI
+
+Every push and pull request to `main` runs lint, tests, and a production build via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### Docker (GitHub Container Registry)
+
+After merging to `main`, GitHub Actions publishes a container image to:
+
+`ghcr.io/liuchiwai0101/stock:main`
+
+Run it locally:
+
+```bash
+docker run --rm -p 43123:43123 ghcr.io/liuchiwai0101/stock:main
+```
+
+Then open [http://localhost:43123](http://localhost:43123).
+
 - Desk (`/`) — forecasts, ticker selection (saved in the browser), paper trades
 - **Scan US buys** — scans the liquid U.S. universe, keeps only 1-year backtest **Pass** + ensemble **BUY**, sorted by model hit rate (high → low)
 - Trade records (`/trades`) — full list of every saved fill
