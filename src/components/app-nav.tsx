@@ -3,12 +3,14 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardList } from "lucide-react";
+import { Activity, ClipboardList, LineChart, Radar } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Desk", icon: Activity },
-  { href: "/trades", label: "Trade records", icon: ClipboardList },
+  { href: "/monitor", label: "Monitor", icon: Radar },
+  { href: "/pnl", label: "P&L", icon: LineChart },
+  { href: "/trades", label: "Trades", icon: ClipboardList },
 ] as const;
 
 export function AppNav({
