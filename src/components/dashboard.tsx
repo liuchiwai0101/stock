@@ -141,10 +141,12 @@ export function Dashboard() {
 
   useEffect(() => {
     const saved = loadSelection();
-    setSymbols(saved.symbols);
-    setActive(saved.active);
-    setHorizon(saved.horizon);
-    setSelectionReady(true);
+    queueMicrotask(() => {
+      setSymbols(saved.symbols);
+      setActive(saved.active);
+      setHorizon(saved.horizon);
+      setSelectionReady(true);
+    });
   }, []);
 
   useEffect(() => {
