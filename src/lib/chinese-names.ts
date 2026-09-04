@@ -1,5 +1,5 @@
 /** Common U.S. ticker → Chinese reference names (shown when available). */
-const CHINESE_NAMES: Record<string, string> = {
+export const CHINESE_NAMES: Record<string, string> = {
   AAPL: "苹果",
   MSFT: "微软",
   NVDA: "英伟达",
@@ -154,18 +154,23 @@ const CHINESE_NAMES: Record<string, string> = {
   QQQ: "纳斯达克100 ETF",
 };
 
-export function chineseStockName(symbol: string): string | undefined {
-  const key = symbol.trim().toUpperCase();
-  return CHINESE_NAMES[key];
-}
-
 function shortEnglishName(name: string, max = 22): string {
   const clean = name.replace(/\s+Common Stock.*$/i, "").replace(/\s+Inc\.?$/i, "").trim();
   if (clean.length <= max) return clean;
   return `${clean.slice(0, max - 1)}…`;
 }
 
-/** Prefer Chinese name; fall back to shortened English. */
-export function displayStockName(symbol: string, englishName?: string): string {
-  return chineseStockName(symbol) ?? shortEnglishName(englishName?.trim() || symbol);
+export function chineseStockName(symbol: string): string | undefined {
+  const key = symbol.trim().toUpperCase();
+  return CHINESE_NAMES[key];
+}
+
+/** Prefer Chinese name; fall back to shortened English. Pass merged cache on the client when available. */
+export function displayStockName(
+  symbol: string,
+  englishName?: string,
+  mergedCache?: Record<string, string>,
+): string {
+  const key = symbol.trim().toUpperCase();
+  return mergedCache?.[key] ?? CHINESE_NAMES[key] ?? shortEnglishName(englishName?.trim() || symbol);
 }

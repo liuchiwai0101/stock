@@ -1,12 +1,13 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockNameInline } from "@/components/stock-name";
 import { TradeOrderForm } from "@/components/trade-order-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
+import { ensureChineseNames } from "@/lib/chinese-names-store";
 import type { CompanyForecast, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -192,6 +193,10 @@ export function StockSummaryTable({
   }, [quotes, buyList]);
 
   const colCount = 2 + 4 + (buyList ? 2 : 0) + 2 + modelCols.length + 1;
+
+  useEffect(() => {
+    void ensureChineseNames(quotes.map((q) => q.symbol));
+  }, [quotes]);
 
   function toggleSort(column: SortColumn) {
     setSort((prev) =>

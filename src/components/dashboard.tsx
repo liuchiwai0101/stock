@@ -5,7 +5,9 @@ import Link from "next/link";
 import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { displayStockName } from "@/lib/chinese-names";
+import { ensureChineseNames } from "@/lib/chinese-names-store";
 import { loadSavedScan, saveSavedScan } from "@/lib/scan-cache";
+import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
@@ -63,8 +65,18 @@ export function Dashboard() {
     for (const p of book.portfolio.positions) m[p.symbol] = p.shares;
     return m;
   }, [book.portfolio.positions]);
+  const chineseNames = useChineseNameCache();
   const quote = run?.quotes.find((q) => q.symbol === active) ?? run?.quotes[0] ?? null;
   const visibleHits = query.trim() ? hits : [];
+
+  useEffect(() => {
+    const tickers = [
+      ...(run?.quotes.map((q) => q.symbol) ?? []),
+      ...hits.map((h) => h.symbol),
+      ...symbols,
+    ];
+    void ensureChineseNames(tickers);
+  }, [run?.quotes, hits, symbols]);
 
   const load = useCallback(async (nextSymbols: string[], nextHorizon: Horizon) => {
     if (nextSymbols.length === 0) {
@@ -426,7 +438,7 @@ export function Dashboard() {
                       <span className="min-w-0">
                         <span className="font-medium">{hit.symbol}</span>
                         <span className="block truncate text-xs text-white/50">
-                          {displayStockName(hit.symbol, hit.name)}
+                          {displayStockName(hit.symbol, hit.name, chineseNames)}
                         </span>
                       </span>
                     </button>

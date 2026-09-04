@@ -1,12 +1,14 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { StockNameInline } from "@/components/stock-name";
 import { TradeOrderForm } from "@/components/trade-order-form";
 import { displayStockName } from "@/lib/chinese-names";
+import { ensureChineseNames } from "@/lib/chinese-names-store";
+import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePortfolio } from "@/hooks/use-portfolio";
@@ -28,11 +30,20 @@ function formatWhen(iso: string): string {
 
 export function TradeRecordsPage() {
   const book = usePortfolio({});
+  const chineseNames = useChineseNameCache();
   const fills = book.portfolio.fills;
   const pnl = book.equity - STARTING_CASH;
   const [sellEditor, setSellEditor] = useState<string | null>(null);
 
   const aggregated = useMemo(() => aggregateTradesBySymbol(fills), [fills]);
+
+  useEffect(() => {
+    const symbols = [
+      ...fills.map((f) => f.symbol),
+      ...book.portfolio.positions.map((p) => p.symbol),
+    ];
+    void ensureChineseNames(symbols);
+  }, [fills, book.portfolio.positions]);
 
   const stats = useMemo(() => {
     const buys = fills.filter((f) => f.side === "BUY");
@@ -221,7 +232,7 @@ export function TradeRecordsPage() {
                       <td className="py-2.5 pr-3">
                         <div className="font-medium">{row.symbol}</div>
                         <div className="max-w-[160px] truncate text-[11px] text-white/40">
-                          {displayStockName(row.symbol, row.name)}
+                          {displayStockName(row.symbol, row.name, chineseNames)}
                         </div>
                       </td>
                       <td className="py-2.5 pr-3 font-mono text-emerald-300">{row.buyShares}</td>
@@ -288,7 +299,7 @@ export function TradeRecordsPage() {
                       <td className="py-2.5 pr-3">
                         <div className="font-medium">{f.symbol}</div>
                         <div className="max-w-[140px] truncate text-[11px] text-white/40">
-                          {displayStockName(f.symbol, f.name)}
+                          {displayStockName(f.symbol, f.name, chineseNames)}
                         </div>
                       </td>
                       <td className="py-2.5 pr-3 font-mono">{f.shares}</td>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle, RefreshCw, Radar } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
@@ -14,6 +14,7 @@ import { usePriceMarks } from "@/hooks/use-price-marks";
 import { CAPTURE_HOUR, CAPTURE_TIMEZONE, isUsMarketOpen } from "@/lib/market-hours";
 import { clsxSign, formatMoney, formatPct, formatPrice } from "@/lib/format";
 import { getLatestDailyScan, loadScanHistory } from "@/lib/scan-history";
+import { ensureChineseNames } from "@/lib/chinese-names-store";
 import { sharesForWeight, STARTING_CASH } from "@/lib/trading";
 import type { DailyPick } from "@/lib/pick-score";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,10 @@ export function MonitorPage() {
     watchSymbols.length > 0,
   );
   const book = usePortfolio(marks);
+
+  useEffect(() => {
+    void ensureChineseNames(watchSymbols);
+  }, [watchSymbols]);
 
   const heldShares = useMemo(() => {
     const m: Record<string, number> = {};
