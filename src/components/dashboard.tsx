@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
-import { chineseStockName } from "@/lib/chinese-names";
+import { displayStockName } from "@/lib/chinese-names";
+import { loadSavedScan, saveSavedScan } from "@/lib/scan-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
@@ -34,7 +35,7 @@ export function Dashboard() {
   const [horizon, setHorizon] = useState<Horizon>(defaults.horizon);
   const [selectionReady, setSelectionReady] = useState(false);
   const [run, setRun] = useState<RunResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -172,6 +173,27 @@ export function Dashboard() {
         );
 
         if (json.done) {
+          const finalRun: RunResponse = {
+            horizon: nextHorizon,
+            generatedAt: json.generatedAt,
+            verification: latestVerification ?? json.verification,
+            quotes: buys,
+            errors: [],
+          };
+          const finalMeta = {
+            scanned: processed,
+            total: json.total ?? total,
+            passed,
+            buyCount: buys.length,
+          };
+          saveSavedScan({
+            horizon: nextHorizon,
+            generatedAt: json.generatedAt,
+            scanMeta: finalMeta,
+            quotes: buys,
+          });
+          setRun(finalRun);
+          setScanMeta(finalMeta);
           if (errorCount > 0) {
             setError(
               `Scan finished with ${errorCount} data issues across ${json.total ?? total} tickers. Showing ${buys.length} BUY names that passed.`,
@@ -192,10 +214,27 @@ export function Dashboard() {
 
   useEffect(() => {
     const saved = loadSelection();
+    const cachedScan = loadSavedScan();
     queueMicrotask(() => {
       setSymbols(saved.symbols);
       setActive(saved.active);
       setHorizon(saved.horizon);
+      if (cachedScan) {
+        setViewMode("buyList");
+        setRun({
+          horizon: cachedScan.horizon,
+          generatedAt: cachedScan.generatedAt,
+          verification: null,
+          quotes: cachedScan.quotes,
+          errors: [],
+        });
+        setScanMeta(cachedScan.scanMeta);
+        setActive((prev) =>
+          cachedScan.quotes.some((q) => q.symbol === prev)
+            ? prev
+            : (cachedScan.quotes[0]?.symbol ?? saved.active),
+        );
+      }
       setSelectionReady(true);
     });
   }, []);
@@ -204,17 +243,6 @@ export function Dashboard() {
     if (!selectionReady) return;
     saveSelection({ symbols, active, horizon });
   }, [symbols, active, horizon, selectionReady]);
-
-  useEffect(() => {
-    if (!selectionReady) return;
-    if (viewMode !== "buyList") return;
-    const timer = window.setTimeout(() => {
-      void scanBuyList(horizon);
-    }, 0);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [horizon, scanBuyList, selectionReady, viewMode]);
 
   useEffect(() => {
     if (!selectionReady) return;
@@ -382,12 +410,9 @@ export function Dashboard() {
                     >
                       <span className="min-w-0">
                         <span className="font-medium">{hit.symbol}</span>
-                        <span className="block truncate text-xs text-white/50">{hit.name}</span>
-                        {chineseStockName(hit.symbol) ? (
-                          <span className="block truncate text-[11px] text-amber-200/70">
-                            {chineseStockName(hit.symbol)}
-                          </span>
-                        ) : null}
+                        <span className="block truncate text-xs text-white/50">
+                          {displayStockName(hit.symbol, hit.name)}
+                        </span>
                       </span>
                     </button>
                   ))}
@@ -503,7 +528,7 @@ export function Dashboard() {
           </div>
         )}
 
-        {run && (
+        {run ? (
           <>
             <section className="space-y-3">
               <div className="space-y-2">
@@ -512,7 +537,7 @@ export function Dashboard() {
                 </h2>
                 <p className="text-sm text-white/45">
                   {viewMode === "buyList"
-                    ? "Full U.S. listed stock scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
+                    ? `Saved U.S. scan · ${run.horizon}d horizon · click Scan US buys to refresh`
                     : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
                 {viewMode === "buyList" && scanMeta ? (
@@ -563,7 +588,17 @@ export function Dashboard() {
               </section>
             ) : null}
           </>
-        )}
+        ) : viewMode === "buyList" && !loading ? (
+          <Card className="border-white/10 bg-[#10161d]">
+            <CardHeader>
+              <CardTitle className="text-base">Suggested buys</CardTitle>
+              <CardDescription>
+                No saved scan yet. Click <strong className="text-white/70">Scan US buys</strong> to scan
+                all U.S. listed stocks. Results are saved in this browser until you scan again.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
 
         <p className="pb-4 text-center text-[11px] text-white/35">
           Educational paper trading only — not investment advice.

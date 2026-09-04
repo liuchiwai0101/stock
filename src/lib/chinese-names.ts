@@ -66,7 +66,7 @@ const CHINESE_NAMES: Record<string, string> = {
   BLK: "贝莱德",
   NOW: "ServiceNow",
   UBER: "优步",
-  PLTR: "Palantir",
+  PLTR: "帕兰提尔",
   SHOP: "Shopify",
   SBUX: "星巴克",
   T: "美国电话电报",
@@ -85,17 +85,17 @@ const CHINESE_NAMES: Record<string, string> = {
   SCHW: "嘉信理财",
   C: "花旗",
   AXP: "美国运通",
-  PYPL: "PayPal",
+  PYPL: "贝宝",
   COF: "第一资本",
   MU: "美光",
   LRCX: "拉姆研究",
   KLAC: "科磊",
   ADI: "亚德诺",
-  PANW: "Palo Alto Networks",
+  PANW: "派拓网络",
   CRWD: "CrowdStrike",
   SNOW: "Snowflake",
   ABNB: "爱彼迎",
-  CMG: "Chipotle",
+  CMG: "奇波雷",
   MAR: "万豪",
   F: "福特",
   GM: "通用汽车",
@@ -111,7 +111,7 @@ const CHINESE_NAMES: Record<string, string> = {
   LI: "理想汽车",
   TSM: "台积电",
   ASML: "阿斯麦",
-  ARM: "Arm",
+  ARM: "安谋",
   SMCI: "超微电脑",
   COIN: "Coinbase",
   MRNA: "Moderna",
@@ -128,7 +128,7 @@ const CHINESE_NAMES: Record<string, string> = {
   FDX: "联邦快递",
   TMUS: "T-Mobile",
   CHTR: "特许通讯",
-  ELV: "Elevance Health",
+  ELV: "联合健康集团",
   CI: "信诺",
   HUM: "哈门那",
   BSX: "波士顿科学",
@@ -157,4 +157,15 @@ const CHINESE_NAMES: Record<string, string> = {
 export function chineseStockName(symbol: string): string | undefined {
   const key = symbol.trim().toUpperCase();
   return CHINESE_NAMES[key];
+}
+
+function shortEnglishName(name: string, max = 22): string {
+  const clean = name.replace(/\s+Common Stock.*$/i, "").replace(/\s+Inc\.?$/i, "").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1)}…`;
+}
+
+/** Prefer Chinese name; fall back to shortened English. */
+export function displayStockName(symbol: string, englishName?: string): string {
+  return chineseStockName(symbol) ?? shortEnglishName(englishName?.trim() || symbol);
 }
