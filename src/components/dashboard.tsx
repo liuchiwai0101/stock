@@ -38,7 +38,7 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"watch" | "buyList">("watch");
+  const [viewMode, setViewMode] = useState<"watch" | "buyList">("buyList");
   const [scanMeta, setScanMeta] = useState<{
     scanned: number;
     passed: number;
@@ -153,6 +153,17 @@ export function Dashboard() {
     if (!selectionReady) return;
     saveSelection({ symbols, active, horizon });
   }, [symbols, active, horizon, selectionReady]);
+
+  useEffect(() => {
+    if (!selectionReady) return;
+    if (viewMode !== "buyList") return;
+    const timer = window.setTimeout(() => {
+      void scanBuyList(horizon);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [horizon, scanBuyList, selectionReady, viewMode]);
 
   useEffect(() => {
     if (!selectionReady) return;
