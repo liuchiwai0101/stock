@@ -41,6 +41,7 @@ export function Dashboard() {
   const [viewMode, setViewMode] = useState<"watch" | "buyList">("buyList");
   const [scanMeta, setScanMeta] = useState<{
     scanned: number;
+    total: number;
     passed: number;
     buyCount: number;
   } | null>(null);
@@ -107,28 +108,77 @@ export function Dashboard() {
     setViewMode("buyList");
     setScanMeta(null);
     try {
-      const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
-      const json = (await res.json()) as RunResponse & {
-        error?: string;
-        scanned?: number;
-        passed?: number;
-        buyCount?: number;
-      };
+      const countRes = await fetch("/api/scan?countOnly=1", { cache: "no-store" });
+      const countJson = (await countRes.json()) as { total?: number };
       if (seq !== requestSeq.current) return;
-      if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
-      setRun(json);
-      setScanMeta({
-        scanned: json.scanned ?? 0,
-        passed: json.passed ?? 0,
-        buyCount: json.buyCount ?? json.quotes.length,
-      });
-      setActive((prev) =>
-        json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? ""),
-      );
-      if (json.errors?.length) {
-        setError(
-          `Scan finished with ${json.errors.length} data issues. Showing ${json.quotes.length} BUY names that passed.`,
+      const total = countJson.total ?? 0;
+
+      const batchSize = 120;
+      let offset = 0;
+      let processed = 0;
+      let passed = 0;
+      let errorCount = 0;
+      const buyMap = new Map<string, CompanyForecast>();
+      let latestVerification: RunResponse["verification"] | null = null;
+
+      while (true) {
+        const res = await fetch(
+          `/api/scan?horizon=${nextHorizon}&offset=${offset}&limit=${batchSize}`,
+          { cache: "no-store" },
         );
+        const json = (await res.json()) as RunResponse & {
+          error?: string;
+          scanned?: number;
+          passed?: number;
+          buyCount?: number;
+          total?: number;
+          processed?: number;
+          done?: boolean;
+        };
+        if (seq !== requestSeq.current) return;
+        if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
+
+        processed = json.processed ?? processed + (json.scanned ?? 0);
+        passed += json.passed ?? 0;
+        errorCount += json.errors?.length ?? 0;
+        latestVerification = json.verification;
+
+        for (const quote of json.quotes) {
+          buyMap.set(quote.symbol, quote);
+        }
+
+        const buys = [...buyMap.values()].sort((a, b) => {
+          const hit = b.metrics.hitRate - a.metrics.hitRate;
+          if (Math.abs(hit) > 1e-9) return hit;
+          return b.confidence - a.confidence;
+        });
+
+        setRun({
+          horizon: nextHorizon,
+          generatedAt: json.generatedAt,
+          verification: latestVerification ?? json.verification,
+          quotes: buys,
+          errors: [],
+        });
+        setScanMeta({
+          scanned: processed,
+          total: json.total ?? total,
+          passed,
+          buyCount: buys.length,
+        });
+        setActive((prev) =>
+          buys.some((q) => q.symbol === prev) ? prev : (buys[0]?.symbol ?? ""),
+        );
+
+        if (json.done) {
+          if (errorCount > 0) {
+            setError(
+              `Scan finished with ${errorCount} data issues across ${json.total ?? total} tickers. Showing ${buys.length} BUY names that passed.`,
+            );
+          }
+          break;
+        }
+        offset += batchSize;
       }
     } catch (err) {
       if (seq !== requestSeq.current) return;
@@ -431,7 +481,9 @@ export function Dashboard() {
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
             <LoaderCircle className="size-4 animate-spin text-sky-300" />
             {viewMode === "buyList"
-              ? `Scanning ${UNIVERSE.length} U.S. stocks for 1-year Pass + BUY…`
+              ? scanMeta
+                ? `Scanning ${scanMeta.scanned.toLocaleString()} / ${scanMeta.total.toLocaleString()} U.S. stocks for 1-year Pass + BUY…`
+                : "Loading full U.S. stock universe…"
               : "Loading forecasts…"}
           </div>
         )}
@@ -452,12 +504,16 @@ export function Dashboard() {
                 </h2>
                 <p className="text-sm text-white/45">
                   {viewMode === "buyList"
-                    ? "U.S. universe scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
+                    ? "Full U.S. listed stock scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
                     : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
                 {viewMode === "buyList" && scanMeta ? (
                   <div className="flex flex-wrap gap-2 pt-1">
-                    <ScanStat label="Scanned" value={scanMeta.scanned} />
+                    <ScanStat
+                      label="Scanned"
+                      value={scanMeta.scanned}
+                      detail={scanMeta.total ? `of ${scanMeta.total.toLocaleString()}` : undefined}
+                    />
                     <ScanStat label="Passed 1y BT" value={scanMeta.passed} />
                     <ScanStat label="BUY" value={scanMeta.buyCount} highlight />
                   </div>
@@ -534,10 +590,12 @@ function Stat({
 function ScanStat({
   label,
   value,
+  detail,
   highlight = false,
 }: {
   label: string;
   value: number;
+  detail?: string;
   highlight?: boolean;
 }) {
   return (
@@ -556,7 +614,8 @@ function ScanStat({
           highlight ? "text-emerald-300" : "text-white/90",
         )}
       >
-        {value}
+        {value.toLocaleString()}
+        {detail ? <span className="ml-1 text-xs font-normal text-white/45">{detail}</span> : null}
       </div>
     </div>
   );

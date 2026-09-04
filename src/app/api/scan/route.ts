@@ -1,32 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runForecast } from "@/lib/forecast";
 import { loadQuote } from "@/lib/market";
+import { mapPool } from "@/lib/scan-pool";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
-import { universeSymbols } from "@/lib/universe";
+import { usEquitySymbols } from "@/lib/us-universe";
 import { getVerificationSummary } from "@/lib/verification-cache";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 const ALLOWED: Horizon[] = [5, 10, 21, 63];
-const CONCURRENCY = 6;
-
-async function mapPool<T, R>(
-  items: T[],
-  limit: number,
-  worker: (item: T, index: number) => Promise<R>,
-): Promise<R[]> {
-  const results = new Array<R>(items.length);
-  let next = 0;
-  async function run() {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await worker(items[i], i);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => run()));
-  return results;
-}
+const CONCURRENCY = 10;
+const DEFAULT_BATCH = 120;
+const MAX_BATCH = 200;
 
 function slimQuote(q: CompanyForecast): CompanyForecast {
   return {
@@ -38,10 +24,24 @@ function slimQuote(q: CompanyForecast): CompanyForecast {
 export async function GET(req: NextRequest) {
   const horizonRaw = Number(req.nextUrl.searchParams.get("horizon") ?? 21);
   const horizon = (ALLOWED.includes(horizonRaw as Horizon) ? horizonRaw : 21) as Horizon;
-  const symbols = universeSymbols();
+  const countOnly = req.nextUrl.searchParams.get("countOnly") === "1";
+  const symbols = await usEquitySymbols();
+
+  if (countOnly) {
+    return NextResponse.json({ total: symbols.length });
+  }
+
+  const offset = Math.max(0, Number(req.nextUrl.searchParams.get("offset") ?? 0));
+  const limit = Math.min(
+    MAX_BATCH,
+    Math.max(1, Number(req.nextUrl.searchParams.get("limit") ?? DEFAULT_BATCH)),
+  );
+  const batch = symbols.slice(offset, offset + limit);
+  const processed = offset + batch.length;
+  const done = processed >= symbols.length;
 
   const errors: RunResponse["errors"] = [];
-  const scanned = await mapPool(symbols, CONCURRENCY, async (symbol) => {
+  const scanned = await mapPool(batch, CONCURRENCY, async (symbol) => {
     try {
       const series = await loadQuote(symbol);
       return slimQuote(runForecast(series, horizon));
@@ -68,6 +68,11 @@ export async function GET(req: NextRequest) {
     scanned: number;
     passed: number;
     buyCount: number;
+    total: number;
+    offset: number;
+    limit: number;
+    processed: number;
+    done: boolean;
   } = {
     mode: "buy-scan",
     horizon,
@@ -75,9 +80,14 @@ export async function GET(req: NextRequest) {
     verification: getVerificationSummary(),
     quotes: buys,
     errors,
-    scanned: symbols.length,
+    scanned: batch.length,
     passed: scanned.filter((q) => q?.liveReady).length,
     buyCount: buys.length,
+    total: symbols.length,
+    offset,
+    limit,
+    processed,
+    done,
   };
 
   return NextResponse.json(body);

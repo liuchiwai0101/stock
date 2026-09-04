@@ -46,7 +46,7 @@ export function StockSummaryTable({
   onTrade: (q: CompanyForecast) => void;
   onTradeAll: () => void;
   mode?: "watch" | "buyList";
-  scanMeta?: { scanned: number; passed: number; buyCount: number } | null;
+  scanMeta?: { scanned: number; total?: number; passed: number; buyCount: number } | null;
 }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const buyList = mode === "buyList";
@@ -85,13 +85,13 @@ export function StockSummaryTable({
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div>
           <CardTitle className="text-base">
-            {buyList ? "US buy list · 1y pass only" : "All stocks × models"}
+            {buyList ? "US buy list · all U.S. stocks" : "All stocks × models"}
           </CardTitle>
           <CardDescription>
             {buyList
               ? scanMeta
-                ? `${scanMeta.scanned} stocks scanned · ${scanMeta.passed} passed · ${scanMeta.buyCount} BUY · sorted by hit rate`
-                : "Passed 1-year backtest and ensemble BUY · sorted by hit rate"
+                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · sorted by hit rate`
+                : "Full U.S. listed stock scan · Pass + BUY · sorted by hit rate"
               : "Charts start collapsed — tap a row to expand or collapse"}
           </CardDescription>
         </div>
