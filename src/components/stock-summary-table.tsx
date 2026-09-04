@@ -36,6 +36,11 @@ type SortColumn =
 
 type SortDir = "asc" | "desc";
 
+const RANK_COL = "w-10 min-w-10 max-w-10";
+const STOCK_COL = "w-36 min-w-36 max-w-36";
+const STICKY_RANK = "sticky left-0 z-20";
+const STICKY_STOCK = "sticky left-10 z-20";
+
 function signalClass(signal: TradeSignal): string {
   if (signal === "BUY") return "bg-emerald-500/15 text-emerald-300 border-emerald-500/20";
   if (signal === "SELL") return "bg-rose-500/15 text-rose-300 border-rose-500/20";
@@ -217,16 +222,29 @@ export function StockSummaryTable({
               : "Add tickers and run the model."}
           </p>
         ) : (
-          <table className={cn("w-full text-left text-sm", buyList ? "min-w-[680px]" : "min-w-[1100px]")}>
+          <table
+            className={cn(
+              "w-full table-fixed text-left text-sm",
+              buyList ? "min-w-[720px]" : "min-w-[1100px]",
+            )}
+          >
             <thead className="text-[10px] tracking-wide uppercase">
               <tr className="border-b border-white/8">
-                <th className="sticky left-0 z-10 bg-[#10161d] py-2 pr-3 font-medium text-white/40">#</th>
+                <th
+                  className={cn(
+                    RANK_COL,
+                    STICKY_RANK,
+                    "bg-[#10161d] py-2 pr-2 font-medium text-white/40",
+                  )}
+                >
+                  #
+                </th>
                 <SortHeader
                   label="Stock"
                   column="symbol"
                   sort={sort}
                   onSort={toggleSort}
-                  className="sticky left-8 z-10 bg-[#10161d]"
+                  className={cn(STOCK_COL, STICKY_STOCK, "bg-[#10161d]")}
                 />
                 <SortHeader label="Last" column="last" sort={sort} onSort={toggleSort} />
                 <SortHeader label="Target" column="target" sort={sort} onSort={toggleSort} />
@@ -258,22 +276,30 @@ export function StockSummaryTable({
                       )}
                       onClick={() => toggleRow(q.symbol)}
                     >
-                      <td className="sticky left-0 z-10 bg-inherit py-2 pr-3 font-mono text-white/40">
+                      <td
+                        className={cn(
+                          RANK_COL,
+                          STICKY_RANK,
+                          "bg-inherit py-2 pr-2 font-mono text-white/40",
+                        )}
+                      >
                         {index + 1}
                       </td>
                       <td
                         className={cn(
-                          "sticky left-8 z-10 max-w-[220px] py-2 pr-3",
+                          STOCK_COL,
+                          STICKY_STOCK,
+                          "overflow-hidden py-2 pr-3",
                           isOpen || q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
                         )}
                       >
                         <button
                           type="button"
                           onClick={() => toggleRow(q.symbol)}
-                          className="flex min-w-0 items-center gap-1 text-left"
+                          className="flex w-full min-w-0 items-center gap-1 overflow-hidden text-left"
                         >
                           <span className="inline-block w-3 shrink-0 text-white/35">{isOpen ? "▾" : "▸"}</span>
-                          <StockNameInline symbol={q.symbol} name={q.name} />
+                          <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                         </button>
                       </td>
                       <td className="py-2 pr-3 font-mono whitespace-nowrap">
