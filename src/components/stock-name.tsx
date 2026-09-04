@@ -1,42 +1,31 @@
 import { chineseStockName } from "@/lib/chinese-names";
 import { cn } from "@/lib/utils";
 
-export function StockNameLines({
+function shortName(name: string, max = 22): string {
+  const clean = name.replace(/\s+Common Stock.*$/i, "").replace(/\s+Inc\.?$/i, "").trim();
+  if (clean.length <= max) return clean;
+  return `${clean.slice(0, max - 1)}…`;
+}
+
+export function StockNameInline({
   symbol,
   name,
-  compact = false,
   className,
 }: {
   symbol: string;
   name: string;
-  compact?: boolean;
   className?: string;
 }) {
   const nameZh = chineseStockName(symbol);
+  const label = nameZh ?? shortName(name);
 
   return (
-    <div className={cn("min-w-0", className)}>
-      <div className={cn("font-medium", compact ? "text-sm" : undefined)}>{symbol}</div>
-      <div
-        className={cn(
-          "truncate text-white/40",
-          compact ? "max-w-[120px] pl-4 text-[11px]" : "text-[11px]",
-        )}
-        title={name}
-      >
-        {name}
-      </div>
-      {nameZh ? (
-        <div
-          className={cn(
-            "truncate text-amber-200/70",
-            compact ? "max-w-[120px] pl-4 text-[10px]" : "text-[10px]",
-          )}
-          title={nameZh}
-        >
-          {nameZh}
-        </div>
-      ) : null}
-    </div>
+    <span
+      className={cn("inline-flex min-w-0 max-w-[200px] items-baseline gap-1.5", className)}
+      title={nameZh ? `${name} · ${nameZh}` : name}
+    >
+      <span className="shrink-0 font-medium">{symbol}</span>
+      <span className="truncate text-[11px] text-white/45">{label}</span>
+    </span>
   );
 }
