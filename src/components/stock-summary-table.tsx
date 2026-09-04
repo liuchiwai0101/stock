@@ -90,7 +90,7 @@ export function StockSummaryTable({
           <CardDescription>
             {buyList
               ? scanMeta
-                ? `Scanned ${scanMeta.scanned} U.S. names · ${scanMeta.passed} passed 1y BT · ${scanMeta.buyCount} BUY · sorted by model hit rate`
+                ? `${scanMeta.scanned} stocks scanned · ${scanMeta.passed} passed · ${scanMeta.buyCount} BUY · sorted by hit rate`
                 : "Passed 1-year backtest and ensemble BUY · sorted by hit rate"
               : "Charts start collapsed — tap a row to expand or collapse"}
           </CardDescription>

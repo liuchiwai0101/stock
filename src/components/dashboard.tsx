@@ -431,7 +431,7 @@ export function Dashboard() {
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
             <LoaderCircle className="size-4 animate-spin text-sky-300" />
             {viewMode === "buyList"
-              ? "Scanning U.S. stocks for 1-year Pass + BUY…"
+              ? `Scanning ${UNIVERSE.length} U.S. stocks for 1-year Pass + BUY…`
               : "Loading forecasts…"}
           </div>
         )}
@@ -446,7 +446,7 @@ export function Dashboard() {
         {run && (
           <>
             <section className="space-y-3">
-              <div>
+              <div className="space-y-2">
                 <h2 className="text-lg font-semibold tracking-tight">
                   {viewMode === "buyList" ? "Suggested buys" : "Suggestions"}
                 </h2>
@@ -455,6 +455,13 @@ export function Dashboard() {
                     ? "U.S. universe scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
                     : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
+                {viewMode === "buyList" && scanMeta ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <ScanStat label="Scanned" value={scanMeta.scanned} />
+                    <ScanStat label="Passed 1y BT" value={scanMeta.passed} />
+                    <ScanStat label="BUY" value={scanMeta.buyCount} highlight />
+                  </div>
+                ) : null}
               </div>
 
               {error && viewMode === "buyList" ? (
@@ -519,6 +526,37 @@ function Stat({
       <div className={cn("font-mono text-sm sm:text-base", tone != null && clsxSign(tone))}>
         {value}
         {hint ? <span className="ml-1 text-[11px] text-white/40">{hint}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function ScanStat({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-3 py-2",
+        highlight
+          ? "border-emerald-500/25 bg-emerald-500/10"
+          : "border-white/10 bg-white/3",
+      )}
+    >
+      <div className="text-[10px] tracking-wide text-white/45 uppercase">{label}</div>
+      <div
+        className={cn(
+          "font-mono text-lg font-semibold",
+          highlight ? "text-emerald-300" : "text-white/90",
+        )}
+      >
+        {value}
       </div>
     </div>
   );
