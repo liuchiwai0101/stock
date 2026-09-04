@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RotateCcw } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { StockNameInline } from "@/components/stock-name";
 import { TradeOrderForm } from "@/components/trade-order-form";
 import { displayStockName } from "@/lib/chinese-names";
 import { Button } from "@/components/ui/button";
@@ -141,40 +142,44 @@ export function TradeRecordsPage() {
                 </thead>
                 <tbody>
                   {book.portfolio.positions.map((p) => (
-                    <tr key={p.symbol} className="border-b border-white/6 last:border-0">
-                      <td className="py-2.5 pr-3">
-                        <div className="font-medium">{p.symbol}</div>
-                        <div className="max-w-[160px] truncate text-[11px] text-white/40">
-                          {displayStockName(p.symbol, p.name)}
-                        </div>
-                      </td>
-                      <td className="py-2.5 pr-3 font-mono">{p.shares}</td>
-                      <td className="py-2.5 pr-3 font-mono">{formatPrice(p.avgPrice)}</td>
-                      <td className="py-2.5 pr-3 font-mono">{formatMoney(p.shares * p.avgPrice)}</td>
-                      <td className="py-2.5">
-                        {sellEditor === p.symbol ? (
-                          <TradeOrderForm
-                            side="SELL"
-                            symbol={p.symbol}
-                            price={p.avgPrice}
-                            defaultShares={p.shares}
-                            maxShares={p.shares}
-                            heldLabel={`hold ${p.shares} sh`}
-                            onSubmit={(shares) => sellPosition(p.symbol, p.name, shares, p.avgPrice)}
-                            onCancel={() => setSellEditor(null)}
-                          />
-                        ) : (
+                    <Fragment key={p.symbol}>
+                      <tr className="border-b border-white/6">
+                        <td className="py-2.5 pr-3">
+                          <StockNameInline symbol={p.symbol} name={p.name} />
+                        </td>
+                        <td className="py-2.5 pr-3 font-mono">{p.shares}</td>
+                        <td className="py-2.5 pr-3 font-mono">{formatPrice(p.avgPrice)}</td>
+                        <td className="py-2.5 pr-3 font-mono">{formatMoney(p.shares * p.avgPrice)}</td>
+                        <td className="py-2.5">
                           <Button
                             size="sm"
                             variant="outline"
                             className="h-7 border-rose-500/30 text-rose-300 hover:bg-rose-500/10"
+                            disabled={sellEditor === p.symbol}
                             onClick={() => setSellEditor(p.symbol)}
                           >
                             Sell
                           </Button>
-                        )}
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                      {sellEditor === p.symbol ? (
+                        <tr className="border-b border-white/6 bg-white/[0.02]">
+                          <td colSpan={5} className="px-2 py-2">
+                            <TradeOrderForm
+                              side="SELL"
+                              symbol={p.symbol}
+                              name={p.name}
+                              price={p.avgPrice}
+                              defaultShares={p.shares}
+                              maxShares={p.shares}
+                              heldLabel={`hold ${p.shares} sh`}
+                              onSubmit={(shares) => sellPosition(p.symbol, p.name, shares, p.avgPrice)}
+                              onCancel={() => setSellEditor(null)}
+                            />
+                          </td>
+                        </tr>
+                      ) : null}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>

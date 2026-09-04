@@ -455,6 +455,7 @@ export function StockSummaryTable({
                           <TradeOrderForm
                             side={tradeEditor.side}
                             symbol={q.symbol}
+                            name={q.name}
                             price={q.last}
                             defaultShares={
                               tradeEditor.side === "BUY"
