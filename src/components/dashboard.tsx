@@ -6,7 +6,9 @@ import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { displayStockName } from "@/lib/chinese-names";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
-import { loadPreviewScan, loadSavedScan, savePartialScan, saveSavedScan, clearPartialScan } from "@/lib/scan-cache";
+import { appendPredictionsFromPicks } from "@/lib/prediction-log";
+import { selectTopPicks } from "@/lib/pick-score";
+import { clearPartialScan, loadPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
@@ -217,6 +219,10 @@ export function Dashboard() {
             scanMeta: finalMeta,
             quotes: buys,
           });
+          appendPredictionsFromPicks(
+            json.generatedAt.slice(0, 10),
+            selectTopPicks(buys, 10),
+          );
           clearPartialScan();
           setRun(finalRun);
           setScanMeta(finalMeta);

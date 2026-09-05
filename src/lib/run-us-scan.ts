@@ -1,4 +1,5 @@
 import { selectTopPicks } from "@/lib/pick-score";
+import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import {
   appendDailyScan,
   todayCaptureKey,
@@ -85,6 +86,7 @@ export async function runFullUsScan(
       };
 
       appendDailyScan(record);
+      appendPredictionsFromPicks(dateKey, topPicks);
       saveSavedScan({
         horizon,
         generatedAt: json.generatedAt,

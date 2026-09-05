@@ -1,4 +1,5 @@
-import type { CompanyForecast } from "@/lib/types";
+import type { CompanyForecast, ModelId } from "@/lib/types";
+import { loadPolicy } from "@/lib/policy-store";
 
 export type DailyPick = {
   rank: number;
@@ -16,9 +17,10 @@ export type DailyPick = {
   recommendedWeight: number;
   signal: CompanyForecast["signal"];
   liveReady: boolean;
+  modelLeans?: Partial<Record<ModelId, number>>;
 };
 
-/** Composite score from ensemble + all 10 model breakdowns. */
+/** Composite score from ensemble + all 10 model breakdowns, tilted by live policy. */
 export function scorePick(q: CompanyForecast): number {
   if (!q.liveReady || q.signal !== "BUY") return Number.NEGATIVE_INFINITY;
 
@@ -28,15 +30,18 @@ export function scorePick(q: CompanyForecast): number {
   const avgModelHit = models.reduce((sum, m) => sum + m.hitRate, 0) / modelCount;
   const sharpeNorm = Math.min(1, Math.max(0, q.backtest.sharpe / 2));
   const expNorm = Math.min(1, Math.max(0, q.expectedReturn * 12));
+  const policy = typeof window === "undefined" ? null : loadPolicy();
+  const liveTilt = policy && policy.samples >= 3 ? 0.85 + 0.3 * policy.liveHitRate : 1;
 
-  return (
+  const base =
     0.3 * q.metrics.hitRate +
     0.2 * q.confidence +
     0.15 * expNorm +
     0.15 * sharpeNorm +
     0.1 * modelBuyVotes +
-    0.1 * avgModelHit
-  );
+    0.1 * avgModelHit;
+
+  return base * liveTilt;
 }
 
 export function toDailyPick(q: CompanyForecast, rank: number, pickScore: number): DailyPick {
@@ -59,6 +64,7 @@ export function toDailyPick(q: CompanyForecast, rank: number, pickScore: number)
     recommendedWeight: q.recommendedWeight,
     signal: q.signal,
     liveReady: q.liveReady,
+    modelLeans: Object.fromEntries((q.models ?? []).map((m) => [m.id, m.expectedReturn])),
   };
 }
 

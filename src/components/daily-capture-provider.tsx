@@ -10,6 +10,7 @@ import {
 } from "@/lib/market-hours";
 import { appendPnlSnapshot, snapshotDateKey } from "@/lib/pnl-snapshots";
 import { computeBookPnL } from "@/lib/pnl";
+import { runLearnCycle } from "@/lib/learn-cycle";
 import { hasCaptureForDate } from "@/lib/scan-history";
 import { runFullUsScan } from "@/lib/run-us-scan";
 import { loadPortfolio } from "@/lib/trading";
@@ -56,6 +57,7 @@ export function DailyCaptureProvider({ children }: { children: React.ReactNode }
     setCapturing(true);
     setLastError(null);
     try {
+      await runLearnCycle();
       const { scan } = await runFullUsScan(DEFAULT_HORIZON, setProgress);
       setLastCaptureDate(scan.date);
       savePnlSnapshotForToday();
@@ -69,6 +71,7 @@ export function DailyCaptureProvider({ children }: { children: React.ReactNode }
   }, []);
 
   useEffect(() => {
+    void runLearnCycle().catch(() => undefined);
     const tick = () => {
       const now = new Date();
       const dateKey = dateKeyInTimeZone(now, CAPTURE_TIMEZONE);

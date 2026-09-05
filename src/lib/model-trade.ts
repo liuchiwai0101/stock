@@ -1,10 +1,13 @@
 import type { DailyPick } from "@/lib/pick-score";
+import { loadPolicy } from "@/lib/policy-store";
 import { sharesForWeight, type TradeRequest } from "@/lib/trading";
 import { formatPct } from "@/lib/format";
 
 export function modelWeight(pick: DailyPick): number {
-  if (pick.recommendedWeight > 0) return pick.recommendedWeight;
-  return Math.min(0.1, Math.max(0.03, Math.abs(pick.expectedReturn) * 2));
+  const policy = typeof window === "undefined" ? null : loadPolicy();
+  const size = policy?.sizeScale ?? 1;
+  const base = pick.recommendedWeight > 0 ? pick.recommendedWeight : Math.min(0.1, Math.max(0.03, Math.abs(pick.expectedReturn) * 2));
+  return Math.min(0.28, Math.max(0.03, base * size));
 }
 
 export function buildModelBuyOrder(

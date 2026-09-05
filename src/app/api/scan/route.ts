@@ -5,6 +5,7 @@ import { mapPool } from "@/lib/scan-pool";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { usEquitySymbols } from "@/lib/us-universe";
 import { getVerificationSummary } from "@/lib/verification-cache";
+import { policyFromRequest } from "@/lib/policy-from-request";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -40,11 +41,12 @@ export async function GET(req: NextRequest) {
   const processed = offset + batch.length;
   const done = processed >= symbols.length;
 
+  const policy = policyFromRequest(req);
   const errors: RunResponse["errors"] = [];
   const scanned = await mapPool(batch, CONCURRENCY, async (symbol) => {
     try {
       const series = await loadQuote(symbol);
-      return slimQuote(runForecast(series, horizon));
+      return slimQuote(runForecast(series, horizon, policy));
     } catch (err) {
       errors.push({
         symbol,
