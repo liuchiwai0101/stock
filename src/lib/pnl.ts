@@ -82,7 +82,8 @@ export function realizedPnLBySymbol(fills: Fill[]): RealizedSymbolPnL[] {
       row.sellNotional += fill.notional;
     }
     row.netShares = row.buyShares - row.sellShares;
-    row.realizedPnL = row.sellNotional - row.buyNotional;
+    const avgBuy = row.buyShares > 0 ? row.buyNotional / row.buyShares : 0;
+    row.realizedPnL = row.sellNotional - avgBuy * row.sellShares;
     bySymbol.set(fill.symbol, row);
   }
 
