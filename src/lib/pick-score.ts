@@ -1,5 +1,9 @@
-import type { CompanyForecast, ModelId } from "@/lib/types";
+import type { CompanyForecast, Horizon, ModelId } from "@/lib/types";
 import { loadPolicy } from "@/lib/policy-store";
+import { loadPredictionLog } from "@/lib/prediction-log";
+import { unreliableSymbols } from "@/lib/stock-reliability";
+import { volRegimeFromCloses } from "@/lib/vol-regime";
+import type { VolRegime } from "@/lib/vol-regime";
 
 export type DailyPick = {
   rank: number;
@@ -17,6 +21,8 @@ export type DailyPick = {
   recommendedWeight: number;
   signal: CompanyForecast["signal"];
   liveReady: boolean;
+  horizon?: Horizon;
+  volRegime?: VolRegime;
   modelLeans?: Partial<Record<ModelId, number>>;
 };
 
@@ -64,12 +70,18 @@ export function toDailyPick(q: CompanyForecast, rank: number, pickScore: number)
     recommendedWeight: q.recommendedWeight,
     signal: q.signal,
     liveReady: q.liveReady,
+    horizon: q.backtest.horizon,
+    volRegime: volRegimeFromCloses(q.history.map((b) => b.close)),
     modelLeans: Object.fromEntries((q.models ?? []).map((m) => [m.id, m.expectedReturn])),
   };
 }
 
 export function selectTopPicks(quotes: CompanyForecast[], limit = 10): DailyPick[] {
+  const blocked =
+    typeof window === "undefined" ? new Set<string>() : unreliableSymbols(loadPredictionLog());
+
   return quotes
+    .filter((q) => !blocked.has(q.symbol))
     .map((q) => ({ q, pickScore: scorePick(q) }))
     .filter((row) => Number.isFinite(row.pickScore))
     .sort((a, b) => {

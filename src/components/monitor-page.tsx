@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { LineChart, LoaderCircle, RefreshCw, Radar, Sparkles, TrendingUp } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
@@ -29,7 +29,8 @@ import { computeBookPnL } from "@/lib/pnl";
 import { appendPnlSnapshot, snapshotDateKey } from "@/lib/pnl-snapshots";
 import { getLatestDailyScan, loadScanHistory } from "@/lib/scan-history";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
-import { sharesForWeight } from "@/lib/trading";
+import { canAutoTrade, AUTO_TRADE_MIN_SAMPLES } from "@/lib/adaptive-policy";
+import { getServerSnapshotPolicy, loadPolicy, subscribePolicy } from "@/lib/policy-store";
 import type { DailyPick } from "@/lib/pick-score";
 import { cn } from "@/lib/utils";
 
@@ -192,6 +193,10 @@ export function MonitorPage() {
   }
 
   function tradeAllModelBuys() {
+    if (!canAutoTrade(loadPolicy())) {
+      book.notify(`Batch auto-trade locked until ${AUTO_TRADE_MIN_SAMPLES} scored calls. Use Model buy to confirm one at a time.`);
+      return;
+    }
     const orders = buildModelBuyOrders(picks, book.equity, marks);
     if (orders.length === 0) {
       book.notify("No model BUY picks to trade.");
@@ -201,6 +206,8 @@ export function MonitorPage() {
   }
 
   const buyableCount = picks.filter((p) => p.liveReady && p.signal === "BUY").length;
+  const policy = useSyncExternalStore(subscribePolicy, loadPolicy, getServerSnapshotPolicy);
+  const autoTradeReady = canAutoTrade(policy);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -254,7 +261,17 @@ export function MonitorPage() {
               {refreshingSignals ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
               Refresh signals
             </Button>
-            <Button size="sm" variant="outline" disabled={buyableCount === 0} onClick={tradeAllModelBuys}>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={buyableCount === 0 || !autoTradeReady}
+              title={
+                autoTradeReady
+                  ? "Place model-sized buys for all verified picks"
+                  : `Need ${AUTO_TRADE_MIN_SAMPLES} scored calls (now ${policy.samples}) before batch auto-trade`
+              }
+              onClick={tradeAllModelBuys}
+            >
               <TrendingUp /> Trade all model BUYs
             </Button>
             <Button
@@ -305,6 +322,18 @@ export function MonitorPage() {
         {error ? (
           <div className="rounded-lg border border-amber-400/20 bg-amber-400/8 px-3 py-2 text-sm text-amber-100">
             {error}
+          </div>
+        ) : null}
+
+        {!autoTradeReady ? (
+          <div className="rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
+            Batch <strong className="text-white/80">Trade all</strong> is locked until Learn has{" "}
+            {AUTO_TRADE_MIN_SAMPLES} scored calls (now {policy.samples}) and live hit ≥ 48%. Use{" "}
+            <strong className="text-white/80">Model buy</strong> to confirm each trade. Review on{" "}
+            <Link href="/learn" className="text-sky-300 hover:underline">
+              Learn
+            </Link>
+            .
           </div>
         ) : null}
 

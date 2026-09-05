@@ -1,5 +1,6 @@
 import { clamp, logPrices, logReturns, mean, softmaxInvError, stdev } from "@/lib/math/stats";
-import { applyBoostsToWeights, defaultPolicy, type AdaptivePolicy } from "@/lib/adaptive-policy";
+import { applyBoostsToWeights, boostsForRegime, defaultPolicy, type AdaptivePolicy } from "@/lib/adaptive-policy";
+import { volRegimeFromCloses } from "@/lib/vol-regime";
 
 /** Log-price path forecast over `horizon` steps (one value per step). */
 export type ModelPredict = (closes: number[], horizon: number) => number[];
@@ -403,7 +404,7 @@ export function fitEnsemble(
   const rawWeights = Object.fromEntries(
     MODEL_REGISTRY.map((m, i) => [m.id, weightArr[i]])
   ) as ModelWeights;
-  const weights = applyBoostsToWeights(rawWeights, policy.modelBoosts);
+  const weights = applyBoostsToWeights(rawWeights, boostsForRegime(policy, volRegimeFromCloses(closes)));
 
   const paths = MODEL_REGISTRY.map((m) => m.predict(closes, horizon));
   const logPath = paths[0].map((_, i) =>

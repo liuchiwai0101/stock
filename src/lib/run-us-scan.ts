@@ -86,7 +86,7 @@ export async function runFullUsScan(
       };
 
       appendDailyScan(record);
-      appendPredictionsFromPicks(dateKey, topPicks);
+      appendPredictionsFromPicks(dateKey, topPicks, horizon);
       saveSavedScan({
         horizon,
         generatedAt: json.generatedAt,

@@ -35,6 +35,28 @@ export function dateKeyInTimeZone(date: Date, timeZone: string): string {
   return `${p.year}-${p.month}-${p.day}`;
 }
 
+export function addCalendarDays(iso: string, days: number): string {
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Count weekdays strictly after `fromIso` up to and including `toIso`. */
+export function businessDaysBetween(fromIso: string, toIso: string): number {
+  if (toIso <= fromIso) return 0;
+  const from = new Date(`${fromIso}T00:00:00Z`);
+  const to = new Date(`${toIso}T00:00:00Z`);
+  let n = 0;
+  const cursor = new Date(from);
+  cursor.setUTCDate(cursor.getUTCDate() + 1);
+  while (cursor <= to) {
+    const wd = cursor.getUTCDay();
+    if (wd !== 0 && wd !== 6) n += 1;
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return n;
+}
+
 export function isUsWeekday(date: Date): boolean {
   const wd = partsInTimeZone(date, "America/New_York").weekday;
   return wd >= 1 && wd <= 5;

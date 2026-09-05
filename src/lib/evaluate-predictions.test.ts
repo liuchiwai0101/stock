@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluatePrediction } from "./evaluate-predictions";
+import { evaluateHorizon, evaluatePrediction } from "./evaluate-predictions";
 import type { LoggedPrediction } from "./prediction-log";
 
 const base: LoggedPrediction = {
@@ -12,6 +12,8 @@ const base: LoggedPrediction = {
   expectedReturn: 0.1,
   signal: "BUY",
   confidence: 0.7,
+  horizon: 5,
+  volRegime: "calm",
   modelLeans: { holt: 0.08, ou: -0.02 },
 };
 
@@ -26,5 +28,20 @@ describe("evaluatePrediction", () => {
   it("marks a miss when price moves against the forecast", () => {
     const row = evaluatePrediction(base, 94, "2026-09-02T00:00:00.000Z");
     expect(row.evaluated?.directionHit).toBe(false);
+  });
+});
+
+describe("evaluateHorizon", () => {
+  it("records target error after the forecast horizon", () => {
+    const row = evaluateHorizon(base, 108, "2026-09-09T00:00:00.000Z");
+    expect(row.horizonEvaluated?.directionHit).toBe(true);
+    expect(row.horizonEvaluated?.targetError).toBeCloseTo(0.02, 6);
+    expect(row.horizonEvaluated?.towardTarget).toBe(true);
+  });
+
+  it("marks a horizon miss when price moved the other way", () => {
+    const row = evaluateHorizon(base, 90, "2026-09-09T00:00:00.000Z");
+    expect(row.horizonEvaluated?.directionHit).toBe(false);
+    expect(row.horizonEvaluated?.targetError).toBeCloseTo(0.2, 6);
   });
 });

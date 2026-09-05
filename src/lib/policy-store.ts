@@ -1,4 +1,4 @@
-import { POLICY_COOKIE, compactPolicy, expandPolicy, type AdaptivePolicy, type CompactPolicy } from "@/lib/adaptive-policy";
+import { POLICY_COOKIE, compactPolicy, expandPolicy, hydratePolicy, type AdaptivePolicy, type CompactPolicy } from "@/lib/adaptive-policy";
 
 const STORAGE_KEY = "signal-desk-adaptive-policy-v1";
 
@@ -28,7 +28,7 @@ export function loadPolicy(): AdaptivePolicy {
     }
     const parsed = JSON.parse(raw) as AdaptivePolicy;
     if (parsed.version === 1 && parsed.modelBoosts) {
-      cached = parsed;
+      cached = hydratePolicy(parsed);
       return cached;
     }
     cached = expandPolicy(parsed as unknown as CompactPolicy);

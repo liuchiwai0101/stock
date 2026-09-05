@@ -1,34 +1,84 @@
 import { describe, expect, it } from "vitest";
-import { applyBoostsToWeights, defaultPolicy, updatePolicy } from "./adaptive-policy";
+import {
+  AUTO_TRADE_MIN_SAMPLES,
+  applyBoostsToWeights,
+  canAutoTrade,
+  defaultPolicy,
+  updatePolicy,
+  type PolicyUpdateInput,
+} from "./adaptive-policy";
+
+function input(overrides: Partial<PolicyUpdateInput> = {}): PolicyUpdateInput {
+  return {
+    samples: 20,
+    liveHitRate: 0.5,
+    horizonSamples: 0,
+    horizonHitRate: 0.5,
+    modelHitRates: {},
+    modelHitRatesCalm: {},
+    modelHitRatesHigh: {},
+    tradingWinRate: 0.5,
+    tradingPnL: 0,
+    ...overrides,
+  };
+}
 
 describe("adaptive policy", () => {
-  it("upweights models with higher live hit rates", () => {
-    const prev = defaultPolicy();
-    const next = updatePolicy(prev, {
-      samples: 20,
-      liveHitRate: 0.65,
-      modelHitRates: {
-        holt: { hits: 12, n: 16 },
-        ou: { hits: 2, n: 16 },
-      },
-      tradingWinRate: 0.6,
-      tradingPnL: 800,
-    });
+  it("upweights models with higher live hit rates and grows size after the sample gate", () => {
+    const next = updatePolicy(
+      defaultPolicy(),
+      input({
+        samples: AUTO_TRADE_MIN_SAMPLES,
+        liveHitRate: 0.65,
+        modelHitRates: {
+          holt: { hits: 12, n: 16 },
+          ou: { hits: 2, n: 16 },
+        },
+        modelHitRatesCalm: {
+          holt: { hits: 10, n: 12 },
+          ou: { hits: 1, n: 12 },
+        },
+        tradingWinRate: 0.6,
+        tradingPnL: 800,
+      }),
+    );
     expect(next.modelBoosts.holt).toBeGreaterThan(next.modelBoosts.ou);
+    expect(next.modelBoostsCalm.holt).toBeGreaterThan(next.modelBoostsCalm.ou);
     expect(next.buyHurdleScale).toBeLessThan(1);
     expect(next.sizeScale).toBeGreaterThan(1);
   });
 
-  it("raises the BUY hurdle when live hits are weak", () => {
-    const next = updatePolicy(defaultPolicy(), {
-      samples: 12,
-      liveHitRate: 0.3,
-      modelHitRates: {},
-      tradingWinRate: 0.3,
-      tradingPnL: -1200,
-    });
+  it("raises the BUY hurdle when live hits are weak but freezes size until 25 samples", () => {
+    const next = updatePolicy(
+      defaultPolicy(),
+      input({
+        samples: 12,
+        liveHitRate: 0.3,
+        tradingWinRate: 0.3,
+        tradingPnL: -1200,
+      }),
+    );
     expect(next.buyHurdleScale).toBeGreaterThan(1);
-    expect(next.sizeScale).toBeLessThan(1);
+    expect(next.sizeScale).toBe(1);
+  });
+
+  it("locks batch auto-trade until 25 scored calls and 48% live hit", () => {
+    const locked = defaultPolicy();
+    expect(canAutoTrade(locked)).toBe(false);
+    expect(
+      canAutoTrade({
+        ...locked,
+        samples: AUTO_TRADE_MIN_SAMPLES,
+        liveHitRate: 0.4,
+      }),
+    ).toBe(false);
+    expect(
+      canAutoTrade({
+        ...locked,
+        samples: AUTO_TRADE_MIN_SAMPLES,
+        liveHitRate: 0.48,
+      }),
+    ).toBe(true);
   });
 
   it("renormalizes boosted ensemble weights", () => {

@@ -5,11 +5,12 @@ import { FlaskConical, RefreshCw } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { MODEL_IDS } from "@/lib/adaptive-policy";
-import { liveHitRate } from "@/lib/evaluate-predictions";
+import { AUTO_TRADE_MIN_SAMPLES, MODEL_IDS, canAutoTrade } from "@/lib/adaptive-policy";
+import { horizonHitRate, liveHitRate } from "@/lib/evaluate-predictions";
 import { clsxSign, formatMoney, formatPct } from "@/lib/format";
 import { runLearnCycle, type LearnReport } from "@/lib/learn-cycle";
 import { loadPredictionLog, modelHitRates } from "@/lib/prediction-log";
+import { unreliableSymbols } from "@/lib/stock-reliability";
 import { getServerSnapshotPolicy, loadPolicy, subscribePolicy } from "@/lib/policy-store";
 import { MODEL_LABELS } from "@/lib/models/registry";
 import { cn } from "@/lib/utils";
@@ -40,8 +41,11 @@ export function LearnPage() {
   }
 
   const hit = useMemo(() => liveHitRate(log), [log]);
+  const horizon = useMemo(() => horizonHitRate(log), [log]);
   const modelRates = useMemo(() => modelHitRates(log), [log]);
+  const blocked = useMemo(() => [...unreliableSymbols(log)], [log]);
   const scored = log.filter((r) => r.evaluated);
+  const autoReady = canAutoTrade(policy);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -68,16 +72,18 @@ export function LearnPage() {
 
         {report ? (
           <div className="rounded-lg border border-sky-400/20 bg-sky-400/8 px-3 py-2 text-sm text-sky-100">
-            Scored {report.evaluated} new prediction{report.evaluated === 1 ? "" : "s"} · live hit{" "}
-            {(report.liveHitRate * 100).toFixed(0)}% · trade win {(report.tradingWinRate * 100).toFixed(0)}%
+            Scored {report.evaluated} next-session call{report.evaluated === 1 ? "" : "s"}
+            {report.horizonEvaluated ? ` · ${report.horizonEvaluated} horizon` : ""} · live hit{" "}
+            {(report.liveHitRate * 100).toFixed(0)}% · cost-aware win {(report.tradingWinRate * 100).toFixed(0)}%
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-4">
-          <Stat label="Scored calls" value={String(hit.n)} />
-          <Stat label="Live hit rate" value={`${(hit.rate * 100).toFixed(0)}%`} tone={hit.rate - 0.5} />
+        <div className="grid gap-3 sm:grid-cols-5">
+          <Stat label="Scored calls" value={`${hit.n} / ${AUTO_TRADE_MIN_SAMPLES}`} />
+          <Stat label="Live hit" value={`${(hit.rate * 100).toFixed(0)}%`} tone={hit.rate - 0.5} />
+          <Stat label="Horizon hit" value={horizon.n ? `${(horizon.rate * 100).toFixed(0)}%` : "—"} />
           <Stat label="BUY hurdle" value={`${policy.buyHurdleScale.toFixed(2)}×`} />
-          <Stat label="Size scale" value={`${policy.sizeScale.toFixed(2)}×`} />
+          <Stat label="Auto-trade" value={autoReady ? "Ready" : "Locked"} />
         </div>
 
         <Card className="bg-[#10161d]">
@@ -96,7 +102,7 @@ export function LearnPage() {
             </div>
             <div>
               <div className="mb-1 font-medium text-white">3. Adapt</div>
-              Models that were right get more ensemble weight. Weak live hit raises the BUY hurdle and cuts size.
+              Models that were right get more ensemble weight. Weak live hit raises the BUY hurdle. Size stays frozen until 25 scored calls.
             </div>
           </CardContent>
         </Card>
@@ -114,14 +120,17 @@ export function LearnPage() {
                 <tr className="border-b border-white/8">
                   <th className="py-2 pr-3 font-medium">Model</th>
                   <th className="py-2 pr-3 font-medium">Live hits</th>
-                  <th className="py-2 pr-3 font-medium">Boost</th>
-                  <th className="py-2 font-medium">Effect</th>
+                  <th className="py-2 pr-3 font-medium">Calm</th>
+                  <th className="py-2 pr-3 font-medium">High vol</th>
+                  <th className="py-2 font-medium">Blend</th>
                 </tr>
               </thead>
               <tbody>
                 {MODEL_IDS.map((id) => {
                   const row = modelRates[id];
                   const boost = policy.modelBoosts[id] ?? 1;
+                  const calm = policy.modelBoostsCalm[id] ?? 1;
+                  const high = policy.modelBoostsHighVol[id] ?? 1;
                   return (
                     <tr key={id} className="border-b border-white/6 last:border-0">
                       <td className="py-2.5 pr-3">
@@ -131,11 +140,10 @@ export function LearnPage() {
                       <td className="py-2.5 pr-3 font-mono text-white/70">
                         {row && row.n > 0 ? `${row.hits}/${row.n}` : "—"}
                       </td>
-                      <td className={cn("py-2.5 pr-3 font-mono", boost >= 1 ? "text-emerald-300" : "text-amber-300")}>
+                      <td className="py-2.5 pr-3 font-mono text-white/70">{calm.toFixed(2)}×</td>
+                      <td className="py-2.5 pr-3 font-mono text-white/70">{high.toFixed(2)}×</td>
+                      <td className={cn("py-2.5 font-mono", boost >= 1 ? "text-emerald-300" : "text-amber-300")}>
                         {boost.toFixed(2)}×
-                      </td>
-                      <td className="py-2.5 text-[12px] text-white/45">
-                        {boost > 1.05 ? "Upweighted" : boost < 0.95 ? "Downweighted" : "Neutral"}
                       </td>
                     </tr>
                   );
@@ -164,7 +172,8 @@ export function LearnPage() {
                     <th className="py-2 pr-3 font-medium">Signal</th>
                     <th className="py-2 pr-3 font-medium">Pred</th>
                     <th className="py-2 pr-3 font-medium">Actual</th>
-                    <th className="py-2 font-medium">Hit</th>
+                    <th className="py-2 pr-3 font-medium">Hit</th>
+                    <th className="py-2 font-medium">Horizon</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -181,11 +190,16 @@ export function LearnPage() {
                       </td>
                       <td
                         className={cn(
-                          "py-2.5 font-medium",
+                          "py-2.5 pr-3 font-medium",
                           row.evaluated?.directionHit ? "text-emerald-300" : "text-rose-300",
                         )}
                       >
                         {row.evaluated?.directionHit ? "Hit" : "Miss"}
+                      </td>
+                      <td className="py-2.5 text-[12px] text-white/50">
+                        {row.horizonEvaluated
+                          ? `${row.horizonEvaluated.directionHit ? "Hit" : "Miss"} · err ${(row.horizonEvaluated.targetError * 100).toFixed(1)}%`
+                          : "Pending"}
                       </td>
                     </tr>
                   ))}
@@ -195,9 +209,16 @@ export function LearnPage() {
           </CardContent>
         </Card>
 
+        {blocked.length > 0 ? (
+          <p className="text-xs text-amber-200/80">
+            Dropped from top 10 after 5 misses: {blocked.join(", ")}
+          </p>
+        ) : null}
+
         <p className="text-xs text-white/35">
-          Historical 1-year backtest stays the gate for liveReady. Adaptive boosts only reshape the ensemble and
-          trade size after out-of-sample daily results. Trading P&amp;L last marked: {formatMoney(policy.tradingPnL)}.
+          Backtest still gates liveReady. Live verification retunes mix, hurdle, and size. Cost-aware P&amp;L
+          (fees + 5 bps spread): {formatMoney(policy.tradingPnL)}. Batch auto-trade unlocks at{" "}
+          {AUTO_TRADE_MIN_SAMPLES} scored calls.
         </p>
       </main>
     </div>

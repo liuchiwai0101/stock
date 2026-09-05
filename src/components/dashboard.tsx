@@ -222,6 +222,7 @@ export function Dashboard() {
           appendPredictionsFromPicks(
             json.generatedAt.slice(0, 10),
             selectTopPicks(buys, 10),
+            nextHorizon,
           );
           clearPartialScan();
           setRun(finalRun);
