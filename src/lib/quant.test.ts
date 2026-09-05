@@ -98,6 +98,15 @@ describe("forecast pipeline", () => {
   });
 });
 
+describe("desk helpers", () => {
+  it("parses horizons and ticker lists", async () => {
+    const { parseHorizon, parseSymbols } = await import("@/lib/desk");
+    expect(parseHorizon(21)).toBe(21);
+    expect(parseHorizon(99)).toBe(21);
+    expect(parseSymbols("aapl, MSFT, aapl")).toEqual(["AAPL", "MSFT"]);
+  });
+});
+
 describe("self verification suite", () => {
   it("passes all internal checks", () => {
     const result = runVerificationSuite();
