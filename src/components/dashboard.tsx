@@ -6,7 +6,7 @@ import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { displayStockName } from "@/lib/chinese-names";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
-import { loadSavedScan, saveSavedScan } from "@/lib/scan-cache";
+import { loadPreviewScan, loadSavedScan, savePartialScan, saveSavedScan, clearPartialScan } from "@/lib/scan-cache";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
@@ -180,11 +180,18 @@ export function Dashboard() {
           quotes: buys,
           errors: [],
         });
-        setScanMeta({
+        const progressMeta = {
           scanned: processed,
           total: json.total ?? total,
           passed,
           buyCount: buys.length,
+        };
+        setScanMeta(progressMeta);
+        savePartialScan({
+          horizon: nextHorizon,
+          generatedAt: json.generatedAt,
+          scanMeta: progressMeta,
+          quotes: buys,
         });
         setActive((prev) =>
           buys.some((q) => q.symbol === prev) ? prev : (buys[0]?.symbol ?? ""),
@@ -210,6 +217,7 @@ export function Dashboard() {
             scanMeta: finalMeta,
             quotes: buys,
           });
+          clearPartialScan();
           setRun(finalRun);
           setScanMeta(finalMeta);
           if (errorCount > 0) {
@@ -232,7 +240,7 @@ export function Dashboard() {
 
   useEffect(() => {
     const saved = loadSelection();
-    const cachedScan = loadSavedScan();
+    const cachedScan = loadPreviewScan();
     queueMicrotask(() => {
       setSymbols(saved.symbols);
       setActive(saved.active);
@@ -597,6 +605,7 @@ export function Dashboard() {
                 }
                 mode={viewMode}
                 scanMeta={scanMeta}
+                horizon={run.horizon}
               />
             </section>
 

@@ -29,7 +29,7 @@ import { computeBookPnL } from "@/lib/pnl";
 import { appendPnlSnapshot, snapshotDateKey } from "@/lib/pnl-snapshots";
 import { getLatestDailyScan, loadScanHistory } from "@/lib/scan-history";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
-import { sharesForWeight, STARTING_CASH } from "@/lib/trading";
+import { sharesForWeight } from "@/lib/trading";
 import type { DailyPick } from "@/lib/pick-score";
 import { cn } from "@/lib/utils";
 
@@ -81,6 +81,12 @@ export function MonitorPage() {
     setPickState(loadMonitorPicks());
     setHistory(loadScanHistory());
   }, []);
+
+  useEffect(() => {
+    const onFocus = () => reloadPicks();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [reloadPicks]);
 
   const refreshModelSignals = useCallback(async () => {
     const symbols =

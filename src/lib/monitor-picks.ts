@@ -1,5 +1,4 @@
-import { loadSavedScan } from "@/lib/scan-cache";
-import { getLatestDailyScan } from "@/lib/scan-history";
+import { loadPartialScan, loadPreviewScan, loadSavedScan } from "@/lib/scan-cache";
 import { selectTopPicks } from "@/lib/pick-score";
 import type { DailyPick } from "@/lib/pick-score";
 import type { CompanyForecast, Horizon } from "@/lib/types";
@@ -12,23 +11,14 @@ export type MonitorPickSource = {
 };
 
 export function loadMonitorPicks(): MonitorPickSource {
-  const daily = getLatestDailyScan();
-  if (daily?.topPicks.length) {
+  const preview = loadPreviewScan();
+  if (preview?.quotes.length) {
+    const isDailyOnly = !loadSavedScan() && !loadPartialScan();
     return {
-      picks: daily.topPicks,
-      source: "daily",
-      horizon: daily.horizon,
-      updatedAt: daily.capturedAt,
-    };
-  }
-
-  const saved = loadSavedScan();
-  if (saved?.quotes.length) {
-    return {
-      picks: selectTopPicks(saved.quotes, 10),
-      source: "scan",
-      horizon: saved.horizon,
-      updatedAt: saved.generatedAt,
+      picks: selectTopPicks(preview.quotes, 10),
+      source: isDailyOnly ? "daily" : "scan",
+      horizon: preview.horizon,
+      updatedAt: preview.generatedAt,
     };
   }
 

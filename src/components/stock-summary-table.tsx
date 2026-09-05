@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
-import type { CompanyForecast, ModelId, TradeSignal } from "@/lib/types";
+import type { CompanyForecast, Horizon, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const MODEL_COLUMNS: { id: ModelId; short: string }[] = [
@@ -156,6 +156,7 @@ export function StockSummaryTable({
   suggestedShares,
   mode = "watch",
   scanMeta,
+  horizon = 21,
 }: {
   quotes: CompanyForecast[];
   active: string;
@@ -167,10 +168,12 @@ export function StockSummaryTable({
   suggestedShares?: (q: CompanyForecast) => number;
   mode?: "watch" | "buyList";
   scanMeta?: { scanned: number; total?: number; passed: number; buyCount: number } | null;
+  horizon?: Horizon;
 }) {
   const buyList = mode === "buyList";
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tradeEditor, setTradeEditor] = useState<TradeEditor | null>(null);
+  const [detailQuotes, setDetailQuotes] = useState<Record<string, CompanyForecast>>({});
   const [sort, setSort] = useState<{ column: SortColumn; dir: SortDir }>({
     column: buyList ? "hit" : "symbol",
     dir: buyList ? "desc" : "asc",
@@ -213,6 +216,21 @@ export function StockSummaryTable({
     }
     setExpanded(symbol);
     onSelect(symbol);
+
+    const q = quotes.find((row) => row.symbol === symbol);
+    if (q && q.history.length < 5 && !detailQuotes[symbol]) {
+      void fetch(`/api/run?symbols=${encodeURIComponent(symbol)}&horizon=${horizon}`, {
+        cache: "no-store",
+      })
+        .then((res) => res.json())
+        .then((json: { quotes?: CompanyForecast[] }) => {
+          const full = json.quotes?.[0];
+          if (full) {
+            setDetailQuotes((prev) => ({ ...prev, [symbol]: full }));
+          }
+        })
+        .catch(() => undefined);
+    }
   }
 
   return (
@@ -507,7 +525,7 @@ export function StockSummaryTable({
                                 {q.signal}
                               </span>
                             </div>
-                            <ForecastChart quote={q} compact />
+                            <ForecastChart quote={detailQuotes[q.symbol] ?? q} compact />
                           </div>
                         </td>
                       </tr>
