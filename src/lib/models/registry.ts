@@ -1,4 +1,6 @@
 import { clamp, logPrices, logReturns, mean, softmaxInvError, stdev } from "@/lib/math/stats";
+import { applyBoostsToWeights, boostsForRegime, defaultPolicy, type AdaptivePolicy } from "@/lib/adaptive-policy";
+import { volRegimeFromCloses } from "@/lib/vol-regime";
 
 /** Log-price path forecast over `horizon` steps (one value per step). */
 export type ModelPredict = (closes: number[], horizon: number) => number[];
@@ -382,7 +384,11 @@ export function walkForwardRmse(
   return { rmse: Math.sqrt(sq / k), mape: ape / k, hitRate: hits / k };
 }
 
-export function fitEnsemble(closes: number[], horizon: number): {
+export function fitEnsemble(
+  closes: number[],
+  horizon: number,
+  policy: AdaptivePolicy = defaultPolicy(),
+): {
   weights: ModelWeights;
   logPath: number[];
   metrics: { rmse: number; mape: number; hitRate: number };
@@ -395,9 +401,10 @@ export function fitEnsemble(closes: number[], horizon: number): {
     ...walkForwardRmse(closes, wfHorizon, m.predict),
   }));
   const weightArr = softmaxInvError(scores.map((s) => s.rmse));
-  const weights = Object.fromEntries(
+  const rawWeights = Object.fromEntries(
     MODEL_REGISTRY.map((m, i) => [m.id, weightArr[i]])
   ) as ModelWeights;
+  const weights = applyBoostsToWeights(rawWeights, boostsForRegime(policy, volRegimeFromCloses(closes)));
 
   const paths = MODEL_REGISTRY.map((m) => m.predict(closes, horizon));
   const logPath = paths[0].map((_, i) =>
@@ -413,7 +420,7 @@ export function fitEnsemble(closes: number[], horizon: number): {
       description: m.description,
       purpose: m.purpose,
       formula: m.formula,
-      weight: weightArr[i],
+      weight: weights[m.id],
       rmse: scores[i].rmse,
       mape: scores[i].mape,
       hitRate: scores[i].hitRate,
@@ -423,9 +430,9 @@ export function fitEnsemble(closes: number[], horizon: number): {
   }).sort((a, b) => b.weight - a.weight);
 
   const metrics = {
-    rmse: scores.reduce((s, x, i) => s + weightArr[i] * x.rmse, 0),
-    mape: scores.reduce((s, x, i) => s + weightArr[i] * x.mape, 0),
-    hitRate: scores.reduce((s, x, i) => s + weightArr[i] * x.hitRate, 0),
+    rmse: MODEL_REGISTRY.reduce((s, m) => s + weights[m.id] * (scores.find((x) => x.id === m.id)?.rmse ?? 0), 0),
+    mape: MODEL_REGISTRY.reduce((s, m) => s + weights[m.id] * (scores.find((x) => x.id === m.id)?.mape ?? 0), 0),
+    hitRate: MODEL_REGISTRY.reduce((s, m) => s + weights[m.id] * (scores.find((x) => x.id === m.id)?.hitRate ?? 0), 0),
   };
 
   return { weights, logPath, metrics, models };

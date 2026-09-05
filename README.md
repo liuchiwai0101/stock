@@ -45,6 +45,48 @@ npm run dev
 
 Open [http://localhost:43123](http://localhost:43123).
 
+## Deploy and run on GitHub
+
+This app uses Next.js API routes (`/api/run`, `/api/scan`, `/api/quotes`, etc.), so it needs a Node.js server. GitHub Pages (static hosting) cannot run those APIs.
+
+### Docker (GitHub Container Registry)
+
+Every push to `main` or a `cursor/**` branch publishes:
+
+`ghcr.io/liuchiwai0101/stock:run`
+
+Run it:
+
+```bash
+docker run --rm -p 43123:43123 ghcr.io/liuchiwai0101/stock:run
+```
+
+Or:
+
+```bash
+docker compose up --build
+```
+
+Then open [http://localhost:43123](http://localhost:43123).
+
+If the first pull is denied, GitHub Packages for this image may still be private. On the package page click **Package settings** → **Change visibility** → **Public**, or log in:
+
+```bash
+echo $GITHUB_TOKEN | docker login ghcr.io -u USERNAME --password-stdin
+```
+
+### GitHub Actions CI
+
+Every push and pull request to `main` runs lint, tests, and a production build via [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+### GitHub Codespaces
+
+1. Open the repo on GitHub and click **Code** → **Codespaces** → **Create codespace**
+2. Wait for `npm ci` to finish, then the dev server starts on port **43123**
+3. Open the forwarded port when prompted (or use the **Ports** tab)
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/liuchiwai0101/stock)
+
 - Desk (`/`) — forecasts, ticker selection (saved in the browser), paper trades
 - **Scan US buys** — scans the liquid U.S. universe, keeps only 1-year backtest **Pass** + ensemble **BUY**, sorted by model hit rate (high → low)
 - Trade records (`/trades`) — full list of every saved fill

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { runForecast } from "@/lib/forecast";
 import { loadQuote } from "@/lib/market";
+import { policyFromRequest } from "@/lib/policy-from-request";
 import { getVerificationSummary } from "@/lib/verification-cache";
 import type { Horizon, RunResponse } from "@/lib/types";
 
@@ -18,12 +19,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Pick at least one ticker." }, { status: 400 });
   }
 
+  const policy = policyFromRequest(req);
   const errors: RunResponse["errors"] = [];
   const quotes = await Promise.all(
     symbols.map(async (symbol) => {
       try {
         const series = await loadQuote(symbol);
-        return runForecast(series, horizon);
+        return runForecast(series, horizon, policy);
       } catch (err) {
         errors.push({
           symbol,

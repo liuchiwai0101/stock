@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
+import { displayStockName } from "@/lib/chinese-names";
+import { ensureChineseNames } from "@/lib/chinese-names-store";
+import { appendPredictionsFromPicks } from "@/lib/prediction-log";
+import { selectTopPicks } from "@/lib/pick-score";
+import { clearPartialScan, loadPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
+import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
@@ -33,14 +39,15 @@ export function Dashboard() {
   const [horizon, setHorizon] = useState<Horizon>(defaults.horizon);
   const [selectionReady, setSelectionReady] = useState(false);
   const [run, setRun] = useState<RunResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"watch" | "buyList">("watch");
+  const [viewMode, setViewMode] = useState<"watch" | "buyList">("buyList");
   const [scanMeta, setScanMeta] = useState<{
     scanned: number;
+    total: number;
     passed: number;
     buyCount: number;
   } | null>(null);
@@ -54,8 +61,24 @@ export function Dashboard() {
   }, [run]);
 
   const book = usePortfolio(marks);
+
+  const heldShares = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const p of book.portfolio.positions) m[p.symbol] = p.shares;
+    return m;
+  }, [book.portfolio.positions]);
+  const chineseNames = useChineseNameCache();
   const quote = run?.quotes.find((q) => q.symbol === active) ?? run?.quotes[0] ?? null;
   const visibleHits = query.trim() ? hits : [];
+
+  useEffect(() => {
+    const tickers = [
+      ...(run?.quotes.map((q) => q.symbol) ?? []),
+      ...hits.map((h) => h.symbol),
+      ...symbols,
+    ];
+    void ensureChineseNames(tickers);
+  }, [run?.quotes, hits, symbols]);
 
   const load = useCallback(async (nextSymbols: string[], nextHorizon: Horizon) => {
     if (nextSymbols.length === 0) {
@@ -107,28 +130,111 @@ export function Dashboard() {
     setViewMode("buyList");
     setScanMeta(null);
     try {
-      const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
-      const json = (await res.json()) as RunResponse & {
-        error?: string;
-        scanned?: number;
-        passed?: number;
-        buyCount?: number;
-      };
+      const countRes = await fetch("/api/scan?countOnly=1", { cache: "no-store" });
+      const countJson = (await countRes.json()) as { total?: number };
       if (seq !== requestSeq.current) return;
-      if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
-      setRun(json);
-      setScanMeta({
-        scanned: json.scanned ?? 0,
-        passed: json.passed ?? 0,
-        buyCount: json.buyCount ?? json.quotes.length,
-      });
-      setActive((prev) =>
-        json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? ""),
-      );
-      if (json.errors?.length) {
-        setError(
-          `Scan finished with ${json.errors.length} data issues. Showing ${json.quotes.length} BUY names that passed.`,
+      const total = countJson.total ?? 0;
+
+      const batchSize = 120;
+      let offset = 0;
+      let processed = 0;
+      let passed = 0;
+      let errorCount = 0;
+      const buyMap = new Map<string, CompanyForecast>();
+      let latestVerification: RunResponse["verification"] | null = null;
+
+      while (true) {
+        const res = await fetch(
+          `/api/scan?horizon=${nextHorizon}&offset=${offset}&limit=${batchSize}`,
+          { cache: "no-store" },
         );
+        const json = (await res.json()) as RunResponse & {
+          error?: string;
+          scanned?: number;
+          passed?: number;
+          buyCount?: number;
+          total?: number;
+          processed?: number;
+          done?: boolean;
+        };
+        if (seq !== requestSeq.current) return;
+        if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
+
+        processed = json.processed ?? processed + (json.scanned ?? 0);
+        passed += json.passed ?? 0;
+        errorCount += json.errors?.length ?? 0;
+        latestVerification = json.verification;
+
+        for (const quote of json.quotes) {
+          buyMap.set(quote.symbol, quote);
+        }
+
+        const buys = [...buyMap.values()].sort((a, b) => {
+          const hit = b.metrics.hitRate - a.metrics.hitRate;
+          if (Math.abs(hit) > 1e-9) return hit;
+          return b.confidence - a.confidence;
+        });
+
+        setRun({
+          horizon: nextHorizon,
+          generatedAt: json.generatedAt,
+          verification: latestVerification ?? json.verification,
+          quotes: buys,
+          errors: [],
+        });
+        const progressMeta = {
+          scanned: processed,
+          total: json.total ?? total,
+          passed,
+          buyCount: buys.length,
+        };
+        setScanMeta(progressMeta);
+        savePartialScan({
+          horizon: nextHorizon,
+          generatedAt: json.generatedAt,
+          scanMeta: progressMeta,
+          quotes: buys,
+        });
+        setActive((prev) =>
+          buys.some((q) => q.symbol === prev) ? prev : (buys[0]?.symbol ?? ""),
+        );
+
+        if (json.done) {
+          const finalRun: RunResponse = {
+            horizon: nextHorizon,
+            generatedAt: json.generatedAt,
+            verification: latestVerification ?? json.verification,
+            quotes: buys,
+            errors: [],
+          };
+          const finalMeta = {
+            scanned: processed,
+            total: json.total ?? total,
+            passed,
+            buyCount: buys.length,
+          };
+          saveSavedScan({
+            horizon: nextHorizon,
+            generatedAt: json.generatedAt,
+            scanMeta: finalMeta,
+            quotes: buys,
+          });
+          appendPredictionsFromPicks(
+            json.generatedAt.slice(0, 10),
+            selectTopPicks(buys, 10),
+            nextHorizon,
+          );
+          clearPartialScan();
+          setRun(finalRun);
+          setScanMeta(finalMeta);
+          if (errorCount > 0) {
+            setError(
+              `Scan finished with ${errorCount} data issues across ${json.total ?? total} tickers. Showing ${buys.length} BUY names that passed.`,
+            );
+          }
+          break;
+        }
+        offset += batchSize;
       }
     } catch (err) {
       if (seq !== requestSeq.current) return;
@@ -141,10 +247,29 @@ export function Dashboard() {
 
   useEffect(() => {
     const saved = loadSelection();
-    setSymbols(saved.symbols);
-    setActive(saved.active);
-    setHorizon(saved.horizon);
-    setSelectionReady(true);
+    const cachedScan = loadPreviewScan();
+    queueMicrotask(() => {
+      setSymbols(saved.symbols);
+      setActive(saved.active);
+      setHorizon(saved.horizon);
+      if (cachedScan) {
+        setViewMode("buyList");
+        setRun({
+          horizon: cachedScan.horizon,
+          generatedAt: cachedScan.generatedAt,
+          verification: null,
+          quotes: cachedScan.quotes,
+          errors: [],
+        });
+        setScanMeta(cachedScan.scanMeta);
+        setActive((prev) =>
+          cachedScan.quotes.some((q) => q.symbol === prev)
+            ? prev
+            : (cachedScan.quotes[0]?.symbol ?? saved.active),
+        );
+      }
+      setSelectionReady(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -205,54 +330,63 @@ export function Dashboard() {
     });
   }
 
-  function signalOrder(q: CompanyForecast) {
-    const rec = Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight));
-    const note = `Model ${q.signal} · ${formatPct(q.expectedReturn)} over ${horizon}d`;
-    if (q.signal === "BUY") {
-      return {
-        symbol: q.symbol,
-        name: q.name,
-        side: "BUY" as const,
-        shares: rec,
-        price: q.last,
-        note,
-      };
+  function buyStock(q: CompanyForecast, shares: number) {
+    if (!q.liveReady) {
+      book.notify(`${q.symbol}: 1-year backtest failed — buy blocked until verification passes.`);
+      return;
     }
-    if (q.signal === "SELL") {
-      const held = book.portfolio.positions.find((p) => p.symbol === q.symbol)?.shares ?? 0;
-      if (held <= 0) return null;
-      return {
-        symbol: q.symbol,
-        name: q.name,
-        side: "SELL" as const,
-        shares: Math.min(held, rec),
-        price: q.last,
-        note,
-      };
+    const qty = Math.floor(shares);
+    if (qty <= 0) {
+      book.notify("Enter at least 1 share to buy.");
+      return;
     }
-    return null;
+    book.trade({
+      symbol: q.symbol,
+      name: q.name,
+      side: "BUY",
+      shares: qty,
+      price: q.last,
+      note: `Paper buy · ${qty} sh · ${formatPct(q.expectedReturn)} over ${horizon}d`,
+    });
   }
 
-  function tradeSignal(q: CompanyForecast) {
-    if (!q.liveReady) {
-      book.notify(`${q.symbol}: 1-year backtest failed — signal blocked until verification passes.`);
+  function sellStock(q: CompanyForecast, shares: number) {
+    const held = heldShares[q.symbol] ?? 0;
+    if (held <= 0) {
+      book.notify(`No ${q.symbol} shares to sell.`);
       return;
     }
-    if (q.signal === "HOLD") return;
-    const order = signalOrder(q);
-    if (!order) {
-      book.notify(`No ${q.symbol} shares to sell — this desk does not short.`);
+    const qty = Math.min(held, Math.floor(shares));
+    if (qty <= 0) {
+      book.notify("Enter at least 1 share to sell.");
       return;
     }
-    book.trade(order);
+    book.trade({
+      symbol: q.symbol,
+      name: q.name,
+      side: "SELL",
+      shares: qty,
+      price: q.last,
+      note: `Paper sell · ${qty} sh`,
+    });
   }
 
   function tradeAllSignals() {
     const orders = (run?.quotes ?? [])
-      .map(signalOrder)
-      .filter((o): o is NonNullable<typeof o> => o !== null);
+      .filter((q) => q.liveReady && q.signal === "BUY")
+      .map((q) => {
+        const shares = Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight));
+        return {
+          symbol: q.symbol,
+          name: q.name,
+          side: "BUY" as const,
+          shares,
+          price: q.last,
+          note: `Model BUY · ${formatPct(q.expectedReturn)} over ${horizon}d`,
+        };
+      });
     if (orders.length === 0) {
-      book.notify("No tradable signals. BUY names size automatically; SELL needs an open long.");
+      book.notify("No verified BUY signals to trade.");
       return;
     }
     book.tradeMany(orders);
@@ -314,10 +448,14 @@ export function Dashboard() {
                       key={hit.symbol}
                       type="button"
                       onClick={() => addSymbol(hit.symbol)}
-                      className="flex w-full items-center justify-between px-3 py-2 text-left text-sm hover:bg-white/6"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white/6"
                     >
-                      <span className="font-medium">{hit.symbol}</span>
-                      <span className="truncate pl-4 text-xs text-white/50">{hit.name}</span>
+                      <span className="min-w-0">
+                        <span className="font-medium">{hit.symbol}</span>
+                        <span className="block truncate text-xs text-white/50">
+                          {displayStockName(hit.symbol, hit.name, chineseNames)}
+                        </span>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -418,7 +556,9 @@ export function Dashboard() {
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
             <LoaderCircle className="size-4 animate-spin text-sky-300" />
             {viewMode === "buyList"
-              ? "Scanning U.S. stocks for 1-year Pass + BUY…"
+              ? scanMeta
+                ? `Scanning ${scanMeta.scanned.toLocaleString()} / ${scanMeta.total.toLocaleString()} U.S. stocks for 1-year Pass + BUY…`
+                : "Loading full U.S. stock universe…"
               : "Loading forecasts…"}
           </div>
         )}
@@ -430,18 +570,29 @@ export function Dashboard() {
           </div>
         )}
 
-        {run && (
+        {run ? (
           <>
             <section className="space-y-3">
-              <div>
+              <div className="space-y-2">
                 <h2 className="text-lg font-semibold tracking-tight">
                   {viewMode === "buyList" ? "Suggested buys" : "Suggestions"}
                 </h2>
                 <p className="text-sm text-white/45">
                   {viewMode === "buyList"
-                    ? "U.S. universe scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
+                    ? `Saved U.S. scan · ${run.horizon}d horizon · click Scan US buys to refresh`
                     : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
+                {viewMode === "buyList" && scanMeta ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <ScanStat
+                      label="Scanned"
+                      value={scanMeta.scanned}
+                      detail={scanMeta.total ? `of ${scanMeta.total.toLocaleString()}` : undefined}
+                    />
+                    <ScanStat label="Passed 1y BT" value={scanMeta.passed} />
+                    <ScanStat label="BUY" value={scanMeta.buyCount} highlight />
+                  </div>
+                ) : null}
               </div>
 
               {error && viewMode === "buyList" ? (
@@ -452,10 +603,16 @@ export function Dashboard() {
                 quotes={run.quotes}
                 active={active}
                 onSelect={setActive}
-                onTrade={tradeSignal}
+                onBuy={buyStock}
+                onSell={sellStock}
                 onTradeAll={tradeAllSignals}
+                heldShares={heldShares}
+                suggestedShares={(q) =>
+                  Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight))
+                }
                 mode={viewMode}
                 scanMeta={scanMeta}
+                horizon={run.horizon}
               />
             </section>
 
@@ -479,7 +636,17 @@ export function Dashboard() {
               </section>
             ) : null}
           </>
-        )}
+        ) : viewMode === "buyList" && !loading ? (
+          <Card className="border-white/10 bg-[#10161d]">
+            <CardHeader>
+              <CardTitle className="text-base">Suggested buys</CardTitle>
+              <CardDescription>
+                No saved scan yet. Click <strong className="text-white/70">Scan US buys</strong> to scan
+                all U.S. listed stocks. Results are saved in this browser until you scan again.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
 
         <p className="pb-4 text-center text-[11px] text-white/35">
           Educational paper trading only — not investment advice.
@@ -506,6 +673,40 @@ function Stat({
       <div className={cn("font-mono text-sm sm:text-base", tone != null && clsxSign(tone))}>
         {value}
         {hint ? <span className="ml-1 text-[11px] text-white/40">{hint}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function ScanStat({
+  label,
+  value,
+  detail,
+  highlight = false,
+}: {
+  label: string;
+  value: number;
+  detail?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-3 py-2",
+        highlight
+          ? "border-emerald-500/25 bg-emerald-500/10"
+          : "border-white/10 bg-white/3",
+      )}
+    >
+      <div className="text-[10px] tracking-wide text-white/45 uppercase">{label}</div>
+      <div
+        className={cn(
+          "font-mono text-lg font-semibold",
+          highlight ? "text-emerald-300" : "text-white/90",
+        )}
+      >
+        {value.toLocaleString()}
+        {detail ? <span className="ml-1 text-xs font-normal text-white/45">{detail}</span> : null}
       </div>
     </div>
   );
