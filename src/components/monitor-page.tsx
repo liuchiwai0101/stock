@@ -17,6 +17,7 @@ import {
   buildModelBuyOrder,
   buildModelBuyOrders,
   buildModelSellOrder,
+  modelWeight,
   progressToTarget,
 } from "@/lib/model-trade";
 import {
@@ -32,6 +33,7 @@ import { ensureChineseNames } from "@/lib/chinese-names-store";
 import { canAutoTrade, AUTO_TRADE_MIN_SAMPLES } from "@/lib/adaptive-policy";
 import { getServerSnapshotPolicy, loadPolicy, subscribePolicy } from "@/lib/policy-store";
 import type { DailyPick } from "@/lib/pick-score";
+import { sharesForWeight } from "@/lib/trading";
 import { cn } from "@/lib/utils";
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
@@ -474,16 +476,7 @@ export function MonitorPage() {
                                 price={last}
                                 defaultShares={
                                   tradeEditor.side === "BUY"
-                                    ? Math.max(
-                                        1,
-                                        sharesForWeight(
-                                          book.equity,
-                                          last,
-                                          pick.recommendedWeight > 0
-                                            ? pick.recommendedWeight
-                                            : 0.08,
-                                        ),
-                                      )
+                                    ? Math.max(1, sharesForWeight(book.equity, last, modelWeight(pick)))
                                     : (heldShares[pick.symbol] ?? 1)
                                 }
                                 maxShares={
