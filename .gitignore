@@ -16,6 +16,8 @@
 # next.js
 /.next/
 /out/
+/public/data/
+.pages-stash-api
 
 # production
 /build

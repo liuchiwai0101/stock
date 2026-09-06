@@ -11,11 +11,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { clsxSign, formatMoney, formatPct } from "@/lib/format";
+import { runDesk, scanBuyList as runBuyScan, searchDesk } from "@/lib/desk";
 import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
+
+const STATIC_DESK = process.env.NEXT_PUBLIC_STATIC_DESK === "true";
 
 const HORIZONS: { value: Horizon; label: string }[] = [
   { value: 5, label: "1 week" },
@@ -70,13 +73,18 @@ export function Dashboard() {
     setViewMode("watch");
     setScanMeta(null);
     try {
-      const res = await fetch(
-        `/api/run?symbols=${encodeURIComponent(nextSymbols.join(","))}&horizon=${nextHorizon}`,
-        { cache: "no-store" },
-      );
-      const json = (await res.json()) as RunResponse & { error?: string };
+      const json = STATIC_DESK
+        ? await runDesk(nextSymbols, nextHorizon)
+        : await (async () => {
+            const res = await fetch(
+              `/api/run?symbols=${encodeURIComponent(nextSymbols.join(","))}&horizon=${nextHorizon}`,
+              { cache: "no-store" },
+            );
+            const body = (await res.json()) as RunResponse & { error?: string };
+            if (!res.ok) throw new Error(body.error ?? "Forecast failed");
+            return body;
+          })();
       if (seq !== requestSeq.current) return;
-      if (!res.ok) throw new Error(json.error ?? "Forecast failed");
       if (!json.quotes?.length) {
         throw new Error(
           json.errors?.length
@@ -107,15 +115,20 @@ export function Dashboard() {
     setViewMode("buyList");
     setScanMeta(null);
     try {
-      const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
-      const json = (await res.json()) as RunResponse & {
-        error?: string;
-        scanned?: number;
-        passed?: number;
-        buyCount?: number;
-      };
+      const json = STATIC_DESK
+        ? await runBuyScan(nextHorizon)
+        : await (async () => {
+            const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
+            const body = (await res.json()) as RunResponse & {
+              error?: string;
+              scanned?: number;
+              passed?: number;
+              buyCount?: number;
+            };
+            if (!res.ok) throw new Error(body.error ?? "US buy scan failed");
+            return body;
+          })();
       if (seq !== requestSeq.current) return;
-      if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
       setRun(json);
       setScanMeta({
         scanned: json.scanned ?? 0,
@@ -169,9 +182,14 @@ export function Dashboard() {
     const q = query.trim();
     if (!q) return;
     const t = window.setTimeout(async () => {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const json = (await res.json()) as { results: SearchHit[] };
-      setHits(json.results ?? []);
+      const results = STATIC_DESK
+        ? await searchDesk(q)
+        : await (async () => {
+            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+            const json = (await res.json()) as { results: SearchHit[] };
+            return json.results ?? [];
+          })();
+      setHits(results);
       setSearchOpen(true);
     }, 220);
     return () => window.clearTimeout(t);
