@@ -40,7 +40,9 @@ curl localhost:43123/api/verify
 
 Live site: **[https://liuchiwai0101.github.io/stock/](https://liuchiwai0101.github.io/stock/)**
 
-GitHub Pages serves the desk as a static app. Quotes are snapshotted at deploy time; the 10 models still run in your browser (watchlist, US buy scan, paper trades).
+GitHub Pages publishes from **`main`** / **`docs/`**. In the repo: **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
+
+The desk is a static app. Quotes are snapshotted at deploy time; the 10 models still run in your browser (watchlist, US buy scan, paper trades).
 
 ## Run
 

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, renameSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
 
 const api = "src/app/api";
 const stash = ".pages-stash-api";
@@ -27,6 +27,8 @@ try {
     PAGES_BASE_PATH: process.env.PAGES_BASE_PATH || "/stock",
   });
   writeFileSync("out/.nojekyll", "");
+  rmSync("docs", { recursive: true, force: true });
+  cpSync("out", "docs", { recursive: true });
 } finally {
   if (existsSync(stash)) {
     renameSync(stash, api);
