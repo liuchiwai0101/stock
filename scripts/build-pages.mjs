@@ -1,8 +1,27 @@
 import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 const api = "src/app/api";
 const stash = ".pages-stash-api";
+
+const ROOT_ENTRIES = [
+  ".nojekyll",
+  "index.html",
+  "index.txt",
+  "404.html",
+  "favicon.ico",
+  "file.svg",
+  "globe.svg",
+  "next.svg",
+  "vercel.svg",
+  "window.svg",
+  "_next",
+  "data",
+  "trades",
+  "_not-found",
+  "404",
+];
 
 function run(cmd, args, extraEnv = {}) {
   const result = spawnSync(cmd, args, {
@@ -11,6 +30,21 @@ function run(cmd, args, extraEnv = {}) {
   });
   if (result.status !== 0) {
     process.exit(result.status ?? 1);
+  }
+}
+
+function publishDir(fromDir, toDir) {
+  rmSync(toDir, { recursive: true, force: true });
+  cpSync(fromDir, toDir, { recursive: true });
+}
+
+function publishToRepoRoot(fromDir) {
+  writeFileSync(".nojekyll", "");
+  for (const name of ROOT_ENTRIES) {
+    const from = join(fromDir, name);
+    if (!existsSync(from)) continue;
+    rmSync(name, { recursive: true, force: true });
+    cpSync(from, name, { recursive: true });
   }
 }
 
@@ -27,8 +61,9 @@ try {
     PAGES_BASE_PATH: process.env.PAGES_BASE_PATH || "/stock",
   });
   writeFileSync("out/.nojekyll", "");
-  rmSync("docs", { recursive: true, force: true });
-  cpSync("out", "docs", { recursive: true });
+  publishDir("out", "docs");
+  // GitHub Pages is set to main / (root). Copy the site there so it is public.
+  publishToRepoRoot("out");
 } finally {
   if (existsSync(stash)) {
     renameSync(stash, api);
