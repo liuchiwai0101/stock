@@ -3,11 +3,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardList } from "lucide-react";
+import { Activity, ClipboardList, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
   { href: "/", label: "Desk", icon: Activity },
+  { href: "/verify", label: "Verify", icon: ShieldCheck },
   { href: "/trades", label: "Trade records", icon: ClipboardList },
 ] as const;
 

@@ -1,6 +1,7 @@
 import { runForecast } from "@/lib/forecast";
 import { loadQuote, searchTickers, type SearchHit } from "@/lib/market";
 import { mapPool } from "@/lib/pool";
+import type { ScanMeta } from "@/lib/scan-history";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE, universeSymbols } from "@/lib/universe";
 import { getVerificationSummary } from "@/lib/verification-cache";
@@ -11,9 +12,18 @@ const SCAN_CONCURRENCY = 6;
 export type BuyScanResponse = RunResponse & {
   mode: "buy-scan";
   scanned: number;
+  total: number;
   passed: number;
   buyCount: number;
 };
+
+function sortBuys(quotes: CompanyForecast[]): CompanyForecast[] {
+  return [...quotes].sort((a, b) => {
+    const hit = b.metrics.hitRate - a.metrics.hitRate;
+    if (Math.abs(hit) > 1e-9) return hit;
+    return b.confidence - a.confidence;
+  });
+}
 
 export function parseHorizon(raw: number): Horizon {
   return ALLOWED_HORIZONS.includes(raw as Horizon) ? (raw as Horizon) : 21;
@@ -70,31 +80,46 @@ export async function runDesk(symbols: string[], horizon: Horizon): Promise<RunR
   };
 }
 
-export async function scanBuyList(horizon: Horizon): Promise<BuyScanResponse> {
+export async function scanBuyList(
+  horizon: Horizon,
+  onProgress?: (meta: ScanMeta, buys: CompanyForecast[]) => void,
+): Promise<BuyScanResponse> {
   const symbols = universeSymbols();
+  const total = symbols.length;
   const errors: RunResponse["errors"] = [];
-  const scanned = await mapPool(symbols, SCAN_CONCURRENCY, async (symbol) => {
+  const buyMap = new Map<string, CompanyForecast>();
+  let completed = 0;
+  let passed = 0;
+
+  await mapPool(symbols, SCAN_CONCURRENCY, async (symbol) => {
     try {
       const series = await loadQuote(symbol);
-      return slimQuote(runForecast(series, horizon));
+      const quote = slimQuote(runForecast(series, horizon));
+      if (quote.liveReady) passed += 1;
+      if (quote.liveReady && quote.signal === "BUY") buyMap.set(symbol, quote);
     } catch (err) {
       errors.push({
         symbol,
         message: err instanceof Error ? err.message : "Forecast failed",
       });
-      return null;
+    } finally {
+      completed += 1;
+      if (onProgress) {
+        onProgress(
+          {
+            scanned: completed,
+            total,
+            passed,
+            buyCount: buyMap.size,
+          },
+          sortBuys([...buyMap.values()]),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
     }
   });
 
-  const buys = scanned
-    .filter((q): q is CompanyForecast => q !== null)
-    .filter((q) => q.liveReady && q.signal === "BUY")
-    .sort((a, b) => {
-      const hit = b.metrics.hitRate - a.metrics.hitRate;
-      if (Math.abs(hit) > 1e-9) return hit;
-      return b.confidence - a.confidence;
-    });
-
+  const buys = sortBuys([...buyMap.values()]);
   return {
     mode: "buy-scan",
     horizon,
@@ -102,8 +127,9 @@ export async function scanBuyList(horizon: Horizon): Promise<BuyScanResponse> {
     verification: getVerificationSummary(),
     quotes: buys,
     errors,
-    scanned: symbols.length,
-    passed: scanned.filter((q) => q?.liveReady).length,
+    scanned: completed,
+    total,
+    passed,
     buyCount: buys.length,
   };
 }

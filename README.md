@@ -54,7 +54,8 @@ npm run dev
 Open [http://localhost:43123](http://localhost:43123).
 
 - Desk (`/`) — forecasts, ticker selection (saved in the browser), paper trades
-- **Scan US buys** — scans the liquid U.S. universe, keeps only 1-year backtest **Pass** + ensemble **BUY**, sorted by model hit rate (high → low)
+- **Scan US buys** — scans **100** liquid U.S. names, shows scanned / passed 1y BT / BUY counts, keeps only Pass + ensemble **BUY**
+- Verify (`/verify`) — continuous self-verification, scores previous suggestions vs later quotes, compares the last two scans
 - Trade records (`/trades`) — full list of every saved fill
 
 ## API

@@ -19,6 +19,7 @@ const ROOT_ENTRIES = [
   "_next",
   "data",
   "trades",
+  "verify",
   "_not-found",
   "404",
 ];

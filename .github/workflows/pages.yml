@@ -9,6 +9,7 @@ on:
       - "_next/**"
       - "data/**"
       - "trades/**"
+      - "verify/**"
       - "_not-found/**"
       - "404/**"
       - "index.html"
@@ -51,7 +52,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs .nojekyll index.html index.txt 404.html 404 _next data trades _not-found favicon.ico file.svg globe.svg next.svg vercel.svg window.svg
+          git add docs .nojekyll index.html index.txt 404.html 404 _next data trades verify _not-found favicon.ico file.svg globe.svg next.svg vercel.svg window.svg
           if git diff --staged --quiet; then
             echo "No Pages changes"
             exit 0
