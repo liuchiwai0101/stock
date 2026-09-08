@@ -38,11 +38,11 @@ curl localhost:43123/api/verify
 
 ## Review on GitHub
 
-Live site: **[https://liuchiwai0101.github.io/stock/](https://liuchiwai0101.github.io/stock/)**
+**Public site (not localhost):** [https://liuchiwai0101.github.io/stock/](https://liuchiwai0101.github.io/stock/)
 
-GitHub Pages publishes from **`main`** / **`docs/`**. In the repo: **Settings → Pages → Deploy from a branch → `main` / `/docs`**.
+GitHub Pages publishes from **`main`**. The built desk (plus `.nojekyll`) lives at the repo root so the URL works off your computer.
 
-The desk is a static app. Quotes are snapshotted at deploy time; the 10 models still run in your browser (watchlist, US buy scan, paper trades).
+Quotes are snapshotted at deploy time; the 10 models still run in the browser.
 
 ## Run
 

@@ -6,6 +6,16 @@ on:
       - main
     paths-ignore:
       - "docs/**"
+      - "_next/**"
+      - "data/**"
+      - "trades/**"
+      - "_not-found/**"
+      - "404/**"
+      - "index.html"
+      - "index.txt"
+      - "404.html"
+      - ".nojekyll"
+      - "favicon.ico"
   workflow_dispatch:
 
 permissions:
@@ -34,16 +44,16 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Build static site into docs/
+      - name: Build static site
         run: npm run build:pages
 
-      - name: Commit docs on main
+      - name: Commit GitHub Pages files on main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs
+          git add docs .nojekyll index.html index.txt 404.html 404 _next data trades _not-found favicon.ico file.svg globe.svg next.svg vercel.svg window.svg
           if git diff --staged --quiet; then
-            echo "No docs changes"
+            echo "No Pages changes"
             exit 0
           fi
           git commit -m "Publish GitHub Pages site from main"
