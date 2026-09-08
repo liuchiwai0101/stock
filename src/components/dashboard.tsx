@@ -5,6 +5,8 @@ import Link from "next/link";
 import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { StockSummaryTable } from "@/components/stock-summary-table";
+import { SuggestionComparePanel } from "@/components/suggestion-compare-panel";
+import { VerificationBanner } from "@/components/verification-banner";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,10 +14,16 @@ import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { clsxSign, formatMoney, formatPct } from "@/lib/format";
 import { runDesk, scanBuyList as runBuyScan, searchDesk } from "@/lib/desk";
+import { loadPreviewScan } from "@/lib/scan-cache";
+import { persistCompletedScan, persistPartialScan } from "@/lib/scan-persist";
+import type { ScanMeta } from "@/lib/scan-history";
+import { loadScanHistory } from "@/lib/scan-history";
 import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
+import { compareLatestScans, type SuggestionCompare } from "@/lib/suggestion-compare";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
-import { UNIVERSE } from "@/lib/universe";
+import { UNIVERSE, universeSymbols } from "@/lib/universe";
+import { getVerificationSummary } from "@/lib/verification-cache";
 import { cn } from "@/lib/utils";
 
 const STATIC_DESK = process.env.NEXT_PUBLIC_STATIC_DESK === "true";
@@ -36,19 +44,23 @@ export function Dashboard() {
   const [horizon, setHorizon] = useState<Horizon>(defaults.horizon);
   const [selectionReady, setSelectionReady] = useState(false);
   const [run, setRun] = useState<RunResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"watch" | "buyList">("watch");
-  const [scanMeta, setScanMeta] = useState<{
-    scanned: number;
-    passed: number;
-    buyCount: number;
-  } | null>(null);
+  const [viewMode, setViewMode] = useState<"watch" | "buyList">("buyList");
+  const [scanMeta, setScanMeta] = useState<ScanMeta | null>(null);
+  const [compare, setCompare] = useState<SuggestionCompare | null>(null);
+  const [suite, setSuite] = useState<RunResponse["verification"]>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const requestSeq = useRef(0);
+  const autoScanStarted = useRef(false);
+  const universeCount = universeSymbols().length;
+
+  function refreshCompare() {
+    setCompare(compareLatestScans(loadScanHistory()));
+  }
 
   const marks = useMemo(() => {
     const m: Record<string, number> = {};
@@ -110,18 +122,32 @@ export function Dashboard() {
 
   const scanBuyList = useCallback(async (nextHorizon: Horizon) => {
     const seq = ++requestSeq.current;
+    const generatedAt = new Date().toISOString();
     setLoading(true);
     setError(null);
     setViewMode("buyList");
-    setScanMeta(null);
+    setScanMeta({ scanned: 0, total: universeCount, passed: 0, buyCount: 0 });
     try {
       const json = STATIC_DESK
-        ? await runBuyScan(nextHorizon)
+        ? await runBuyScan(nextHorizon, (meta, buys) => {
+            if (seq !== requestSeq.current) return;
+            setScanMeta(meta);
+            persistPartialScan(nextHorizon, generatedAt, meta, buys);
+            setRun({
+              horizon: nextHorizon,
+              generatedAt,
+              verification: getVerificationSummary(),
+              quotes: buys,
+              errors: [],
+            });
+            setActive((prev) => (buys.some((q) => q.symbol === prev) ? prev : (buys[0]?.symbol ?? "")));
+          })
         : await (async () => {
             const res = await fetch(`/api/scan?horizon=${nextHorizon}`, { cache: "no-store" });
             const body = (await res.json()) as RunResponse & {
               error?: string;
               scanned?: number;
+              total?: number;
               passed?: number;
               buyCount?: number;
             };
@@ -129,36 +155,71 @@ export function Dashboard() {
             return body;
           })();
       if (seq !== requestSeq.current) return;
-      setRun(json);
-      setScanMeta({
-        scanned: json.scanned ?? 0,
+      const finalMeta: ScanMeta = {
+        scanned: json.scanned ?? universeCount,
+        total: json.total ?? universeCount,
         passed: json.passed ?? 0,
         buyCount: json.buyCount ?? json.quotes.length,
-      });
+      };
+      setRun(json);
+      setScanMeta(finalMeta);
+      persistCompletedScan(nextHorizon, json.generatedAt, finalMeta, json.quotes);
+      refreshCompare();
       setActive((prev) =>
         json.quotes.some((q) => q.symbol === prev) ? prev : (json.quotes[0]?.symbol ?? ""),
       );
       if (json.errors?.length) {
         setError(
-          `Scan finished with ${json.errors.length} data issues. Showing ${json.quotes.length} BUY names that passed.`,
+          `Scan finished with ${json.errors.length} data issues across ${finalMeta.total} tickers. Showing ${json.quotes.length} BUY names that passed.`,
         );
       }
     } catch (err) {
       if (seq !== requestSeq.current) return;
       setError(err instanceof Error ? err.message : "US buy scan failed.");
-      setScanMeta(null);
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
-  }, []);
+  }, [universeCount]);
 
   useEffect(() => {
     const saved = loadSelection();
-    setSymbols(saved.symbols);
-    setActive(saved.active);
-    setHorizon(saved.horizon);
-    setSelectionReady(true);
-  }, []);
+    const cachedScan = loadPreviewScan();
+    queueMicrotask(() => {
+      setSymbols(saved.symbols);
+      setActive(saved.active);
+      setHorizon(saved.horizon);
+      if (cachedScan) {
+        setViewMode("buyList");
+        setRun({
+          horizon: cachedScan.horizon,
+          generatedAt: cachedScan.generatedAt,
+          verification: getVerificationSummary(),
+          quotes: cachedScan.quotes,
+          errors: [],
+        });
+        setScanMeta(cachedScan.scanMeta);
+        setActive((prev) =>
+          cachedScan.quotes.some((q) => q.symbol === prev)
+            ? prev
+            : (cachedScan.quotes[0]?.symbol ?? saved.active),
+        );
+        refreshCompare();
+      } else {
+        setScanMeta({ scanned: 0, total: universeCount, passed: 0, buyCount: 0 });
+      }
+      setSelectionReady(true);
+      setSuite(getVerificationSummary());
+    });
+  }, [universeCount]);
+
+  useEffect(() => {
+    if (!selectionReady || autoScanStarted.current) return;
+    autoScanStarted.current = true;
+    if (loadPreviewScan()) return;
+    queueMicrotask(() => {
+      void scanBuyList(horizon);
+    });
+  }, [selectionReady, horizon, scanBuyList]);
 
   useEffect(() => {
     if (!selectionReady) return;
@@ -285,8 +346,10 @@ export function Dashboard() {
       <AppNav
         subtitle={
           run
-            ? `Paper forecasts · ${readyCount}/${run.quotes.length} trade-ready · selection saved`
-            : "Paper forecasts · selection saved in this browser"
+            ? viewMode === "buyList" && scanMeta
+              ? `US scan ${scanMeta.scanned.toLocaleString()}/${scanMeta.total.toLocaleString()} · ${scanMeta.passed} passed 1y BT · ${scanMeta.buyCount} BUY`
+              : `Paper forecasts · ${readyCount}/${run.quotes.length} trade-ready · selection saved`
+            : `Paper forecasts · ${universeCount.toLocaleString()} U.S. names in scan universe`
         }
         right={
           <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
@@ -301,7 +364,12 @@ export function Dashboard() {
         <section className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-white/40">
-              Tickers stay saved here. Full trade list lives on{" "}
+              Tickers stay saved here. Verify previous suggestions on{" "}
+              <Link href="/verify" className="text-sky-300 hover:underline">
+                Verify
+              </Link>
+              {" · "}
+              trades on{" "}
               <Link href="/trades" className="text-sky-300 hover:underline">
                 Trade records
               </Link>
@@ -423,6 +491,10 @@ export function Dashboard() {
           </div>
         )}
 
+        {run?.verification ?? suite ? (
+          <VerificationBanner verification={(run?.verification ?? suite)!} />
+        ) : null}
+
         {error && !run && (
           <Card className="border-rose-500/20 bg-rose-500/8">
             <CardHeader>
@@ -436,7 +508,9 @@ export function Dashboard() {
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
             <LoaderCircle className="size-4 animate-spin text-sky-300" />
             {viewMode === "buyList"
-              ? "Scanning U.S. stocks for 1-year Pass + BUY…"
+              ? scanMeta
+                ? `Scanning ${scanMeta.scanned.toLocaleString()} / ${scanMeta.total.toLocaleString()} U.S. stocks for 1-year Pass + BUY…`
+                : `Loading ${universeCount.toLocaleString()} U.S. stocks…`
               : "Loading forecasts…"}
           </div>
         )}
@@ -448,18 +522,29 @@ export function Dashboard() {
           </div>
         )}
 
-        {run && (
+        {run ? (
           <>
             <section className="space-y-3">
-              <div>
+              <div className="space-y-2">
                 <h2 className="text-lg font-semibold tracking-tight">
                   {viewMode === "buyList" ? "Suggested buys" : "Suggestions"}
                 </h2>
                 <p className="text-sm text-white/45">
                   {viewMode === "buyList"
-                    ? "U.S. universe scan — only 1-year backtest Pass + BUY, ranked by model hit rate."
+                    ? `U.S. universe scan — ${scanMeta?.scanned.toLocaleString() ?? 0} of ${scanMeta?.total.toLocaleString() ?? universeCount} names · 1-year Pass + BUY, ranked by model hit rate.`
                     : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
+                {viewMode === "buyList" && scanMeta ? (
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <ScanStat
+                      label="Scanned"
+                      value={scanMeta.scanned}
+                      detail={scanMeta.total ? `of ${scanMeta.total.toLocaleString()}` : undefined}
+                    />
+                    <ScanStat label="Passed 1y BT" value={scanMeta.passed} />
+                    <ScanStat label="BUY" value={scanMeta.buyCount} highlight />
+                  </div>
+                ) : null}
               </div>
 
               {error && viewMode === "buyList" ? (
@@ -476,6 +561,12 @@ export function Dashboard() {
                 scanMeta={scanMeta}
               />
             </section>
+
+            {viewMode === "buyList" && compare ? (
+              <section>
+                <SuggestionComparePanel compare={compare} compact />
+              </section>
+            ) : null}
 
             {quote ? (
               <section className="space-y-3">
@@ -497,7 +588,18 @@ export function Dashboard() {
               </section>
             ) : null}
           </>
-        )}
+        ) : viewMode === "buyList" && !loading ? (
+          <Card className="border-white/10 bg-[#10161d]">
+            <CardHeader>
+              <CardTitle className="text-base">Suggested buys</CardTitle>
+              <CardDescription>
+                Scan {universeCount.toLocaleString()} liquid U.S. stocks. Click{" "}
+                <strong className="text-white/70">Scan US buys</strong> to count Pass + BUY names. Results
+                stay in this browser for continuous verification and comparison.
+              </CardDescription>
+            </CardHeader>
+          </Card>
+        ) : null}
 
         <p className="pb-4 text-center text-[11px] text-white/35">
           Educational paper trading only — not investment advice.
@@ -524,6 +626,35 @@ function Stat({
       <div className={cn("font-mono text-sm sm:text-base", tone != null && clsxSign(tone))}>
         {value}
         {hint ? <span className="ml-1 text-[11px] text-white/40">{hint}</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function ScanStat({
+  label,
+  value,
+  detail,
+  highlight = false,
+}: {
+  label: string;
+  value: number;
+  detail?: string;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-lg border px-3 py-2",
+        highlight ? "border-emerald-500/25 bg-emerald-500/10" : "border-white/10 bg-white/3",
+      )}
+    >
+      <div className="text-[10px] tracking-wide text-white/45 uppercase">{label}</div>
+      <div
+        className={cn("font-mono text-lg font-semibold", highlight ? "text-emerald-300" : "text-white/90")}
+      >
+        {value.toLocaleString()}
+        {detail ? <span className="ml-1 text-xs font-normal text-white/45">{detail}</span> : null}
       </div>
     </div>
   );
