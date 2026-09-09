@@ -7,7 +7,7 @@ export type LiveMark = {
   at: string;
 };
 
-/** Overlay a fresh last price onto a forecast row without rerunning models. */
+/** Overlay a fresh last price onto a forecast row without rerunning models. Deploy nudge after PR #16. */
 export function applyLiveQuote(quote: CompanyForecast, live: LiveMark): CompanyForecast {
   if (!(live.last > 0)) return quote;
   const history = quote.history.map((b) => ({ ...b }));
