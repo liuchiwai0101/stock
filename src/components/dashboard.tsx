@@ -17,10 +17,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
-import { clsxSign, formatMoney, formatPct } from "@/lib/format";
+import { formatPct } from "@/lib/format";
 import { fetchRun, fetchScanBatch, fetchScanCount, fetchSearch } from "@/lib/desk-fetch";
 import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
-import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
+import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
@@ -394,8 +394,6 @@ export function Dashboard() {
     book.tradeMany(orders);
   }
 
-  const pnl = book.equity - STARTING_CASH;
-  const pnlPct = pnl / STARTING_CASH;
   const readyCount = run?.quotes.filter((q) => q.liveReady).length ?? 0;
 
   return (
@@ -406,17 +404,10 @@ export function Dashboard() {
             ? `Paper forecasts · ${readyCount}/${run.quotes.length} trade-ready · selection saved`
             : "Paper forecasts · selection saved in this browser"
         }
-        right={
-          <>
-            <Stat label="Equity" value={formatMoney(book.equity)} />
-            <Stat label="Cash" value={formatMoney(book.portfolio.cash)} />
-            <Stat label="P&L" value={formatMoney(pnl)} hint={formatPct(pnlPct)} tone={pnl} />
-          </>
-        }
       />
 
       <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
-        <section className="sticky top-[3.25rem] z-20 -mx-4 space-y-3 border-b border-white/6 bg-[#0b1016]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
+        <section className="sticky top-14 z-20 -mx-4 space-y-3 border-b border-white/6 bg-[#0b1016]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-white/40">
               Tickers stay saved to your account or this browser. Full trade list lives on{" "}
@@ -705,28 +696,6 @@ export function Dashboard() {
           Educational paper trading only — not investment advice.
         </p>
       </main>
-    </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  hint,
-  tone,
-}: {
-  label: string;
-  value: string;
-  hint?: string;
-  tone?: number;
-}) {
-  return (
-    <div className="flex items-baseline gap-2 whitespace-nowrap">
-      <span className="text-[10px] tracking-wide text-white/40 uppercase">{label}</span>
-      <span className={cn("font-mono text-xs sm:text-sm", tone != null && clsxSign(tone))}>
-        {value}
-        {hint ? <span className="ml-1 text-[10px] text-white/40">{hint}</span> : null}
-      </span>
     </div>
   );
 }

@@ -12,8 +12,8 @@ import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { usePortfolio } from "@/hooks/use-portfolio";
-import { clsxSign, formatMoney, formatPrice } from "@/lib/format";
-import { aggregateTradesBySymbol, STARTING_CASH } from "@/lib/trading";
+import { formatMoney, formatPrice } from "@/lib/format";
+import { aggregateTradesBySymbol } from "@/lib/trading";
 import { cn } from "@/lib/utils";
 
 function formatWhen(iso: string): string {
@@ -32,7 +32,6 @@ export function TradeRecordsPage() {
   const book = usePortfolio({});
   const chineseNames = useChineseNameCache();
   const fills = book.portfolio.fills;
-  const pnl = book.equity - STARTING_CASH;
   const [sellEditor, setSellEditor] = useState<string | null>(null);
 
   const aggregated = useMemo(() => aggregateTradesBySymbol(fills), [fills]);
@@ -81,22 +80,6 @@ export function TradeRecordsPage() {
     <div className="flex min-h-full flex-col">
       <AppNav
         subtitle={`${stats.symbols} stock${stats.symbols === 1 ? "" : "s"} · ${stats.total} fills`}
-        right={
-          <>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Equity</span>
-              <span className="font-mono text-xs sm:text-sm">{formatMoney(book.equity)}</span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Cash</span>
-              <span className="font-mono text-xs sm:text-sm">{formatMoney(book.portfolio.cash)}</span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">P&L</span>
-              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(pnl))}>{formatMoney(pnl)}</span>
-            </div>
-          </>
-        }
       />
 
       <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">

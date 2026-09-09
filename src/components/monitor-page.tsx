@@ -215,26 +215,6 @@ export function MonitorPage() {
     <div className="flex min-h-full flex-col">
       <AppNav
         subtitle={marketOpen ? "Live · model suggestions · paper trades" : "Market closed · delayed quotes"}
-        right={
-          <>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Equity</span>
-              <span className="font-mono text-xs sm:text-sm">{formatMoney(book.equity)}</span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Market</span>
-              <span className={cn("font-mono text-xs sm:text-sm", marketOpen ? "text-emerald-300" : "text-white/55")}>
-                {marketOpen ? "Open" : "Closed"}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">P&L</span>
-              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(bookPnl.totalPnL))}>
-                {formatMoney(bookPnl.totalPnL)}
-              </span>
-            </div>
-          </>
-        }
       />
 
       <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
