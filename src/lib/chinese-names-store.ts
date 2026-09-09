@@ -1,4 +1,5 @@
 import { CHINESE_NAMES } from "@/lib/chinese-names";
+import { STATIC_DESK } from "@/lib/static-mode";
 
 const STORAGE_KEY = "signal-desk-chinese-names-v1";
 
@@ -78,6 +79,7 @@ export async function ensureChineseNames(symbols: string[]) {
     (s) => !merged[s],
   );
   if (missing.length === 0) return;
+  if (STATIC_DESK) return;
 
   const batchKey = missing.sort().join(",");
   const existing = inflight.get(batchKey);

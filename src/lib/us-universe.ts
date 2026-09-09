@@ -1,4 +1,5 @@
 import type { ListedCompany } from "@/lib/universe";
+import { universeSymbols } from "@/lib/universe";
 
 const NASDAQ_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt";
 const OTHER_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt";
@@ -73,6 +74,24 @@ export async function loadUsEquityUniverse(force = false): Promise<ListedCompany
 }
 
 export async function usEquitySymbols(): Promise<string[]> {
-  const universe = await loadUsEquityUniverse();
-  return universe.map((c) => c.symbol);
+  if (typeof window !== "undefined") {
+    try {
+      const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+      const res = await fetch(`${base}/data/manifest.json`, { cache: "force-cache" });
+      if (res.ok) {
+        const json = (await res.json()) as { symbols?: string[] };
+        if (json.symbols?.length) return json.symbols;
+      }
+    } catch {
+      // Fall through to the built-in universe.
+    }
+    return universeSymbols();
+  }
+
+  try {
+    const universe = await loadUsEquityUniverse();
+    return universe.map((c) => c.symbol);
+  } catch {
+    return universeSymbols();
+  }
 }

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
+import { fetchRun } from "@/lib/desk-fetch";
 import type { CompanyForecast, Horizon, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -219,11 +220,8 @@ export function StockSummaryTable({
 
     const q = quotes.find((row) => row.symbol === symbol);
     if (q && q.history.length < 5 && !detailQuotes[symbol]) {
-      void fetch(`/api/run?symbols=${encodeURIComponent(symbol)}&horizon=${horizon}`, {
-        cache: "no-store",
-      })
-        .then((res) => res.json())
-        .then((json: { quotes?: CompanyForecast[] }) => {
+      void fetchRun([symbol], horizon)
+        .then((json) => {
           const full = json.quotes?.[0];
           if (full) {
             setDetailQuotes((prev) => ({ ...prev, [symbol]: full }));

@@ -193,11 +193,29 @@ function simulateSeries(symbol: string): QuoteSeries {
   };
 }
 
+async function loadStaticSnapshot(ticker: string): Promise<QuoteSeries | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const res = await fetch(`${base}/data/quotes/${encodeURIComponent(ticker)}.json`, {
+      cache: "force-cache",
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as QuoteSeries;
+    if (!Array.isArray(json?.bars) || json.bars.length < 60) return null;
+    return { ...json, symbol: ticker };
+  } catch {
+    return null;
+  }
+}
+
 export async function loadQuote(symbol: string, range = "5y"): Promise<QuoteSeries> {
   const ticker = symbol.trim().toUpperCase();
   if (!/^[A-Z0-9.^]{1,10}$/.test(ticker)) {
     throw new Error("Invalid ticker");
   }
+  const snapshot = await loadStaticSnapshot(ticker);
+  if (snapshot) return snapshot;
   const yahooSymbol = ticker.replace(/\./g, "-");
   try {
     const series = await fetchYahoo(yahooSymbol, range);

@@ -1,3 +1,4 @@
+import { fetchScanBatch, fetchScanCount } from "@/lib/desk-fetch";
 import { selectTopPicks } from "@/lib/pick-score";
 import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import {
@@ -7,7 +8,7 @@ import {
 } from "@/lib/scan-history";
 import { CAPTURE_TIMEZONE } from "@/lib/market-hours";
 import { saveSavedScan } from "@/lib/scan-cache";
-import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
+import type { CompanyForecast, Horizon } from "@/lib/types";
 
 export type ScanProgress = {
   processed: number;
@@ -21,9 +22,7 @@ export async function runFullUsScan(
   onProgress?: (progress: ScanProgress) => void,
   isCancelled?: () => boolean,
 ): Promise<{ scan: DailyScanRecord; quotes: CompanyForecast[] }> {
-  const countRes = await fetch("/api/scan?countOnly=1", { cache: "no-store" });
-  const countJson = (await countRes.json()) as { total?: number };
-  const total = countJson.total ?? 0;
+  const total = await fetchScanCount();
 
   const batchSize = 120;
   let offset = 0;
@@ -34,19 +33,7 @@ export async function runFullUsScan(
   while (true) {
     if (isCancelled?.()) throw new Error("Scan cancelled");
 
-    const res = await fetch(
-      `/api/scan?horizon=${horizon}&offset=${offset}&limit=${batchSize}`,
-      { cache: "no-store" },
-    );
-    const json = (await res.json()) as RunResponse & {
-      error?: string;
-      scanned?: number;
-      passed?: number;
-      processed?: number;
-      done?: boolean;
-      total?: number;
-    };
-    if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
+    const json = await fetchScanBatch(horizon, offset, batchSize);
 
     processed = json.processed ?? processed + (json.scanned ?? 0);
     passed += json.passed ?? 0;

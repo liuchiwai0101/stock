@@ -1,5 +1,6 @@
 "use client";
 
+import { fetchMarks } from "@/lib/desk-fetch";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 export type LiveQuote = {
@@ -28,15 +29,7 @@ export function usePriceMarks(symbols: string[], enabled = true, pollMs?: number
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/quotes?symbols=${encodeURIComponent(list.join(","))}`, {
-        cache: "no-store",
-      });
-      const json = (await res.json()) as {
-        quotes?: LiveQuote[];
-        error?: string;
-        errors?: { symbol: string; message: string }[];
-      };
-      if (!res.ok) throw new Error(json.error ?? "Price refresh failed");
+      const json = await fetchMarks(list);
       setQuotes(json.quotes ?? []);
       setUpdatedAt(new Date().toISOString());
       if (json.errors?.length) {

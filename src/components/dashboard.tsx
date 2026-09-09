@@ -17,6 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { clsxSign, formatMoney, formatPct } from "@/lib/format";
+import { fetchRun, fetchScanBatch, fetchScanCount, fetchSearch } from "@/lib/desk-fetch";
 import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
 import { STARTING_CASH, sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
@@ -93,13 +94,8 @@ export function Dashboard() {
     setViewMode("watch");
     setScanMeta(null);
     try {
-      const res = await fetch(
-        `/api/run?symbols=${encodeURIComponent(nextSymbols.join(","))}&horizon=${nextHorizon}`,
-        { cache: "no-store" },
-      );
-      const json = (await res.json()) as RunResponse & { error?: string };
+      const json = await fetchRun(nextSymbols, nextHorizon);
       if (seq !== requestSeq.current) return;
-      if (!res.ok) throw new Error(json.error ?? "Forecast failed");
       if (!json.quotes?.length) {
         throw new Error(
           json.errors?.length
@@ -130,10 +126,8 @@ export function Dashboard() {
     setViewMode("buyList");
     setScanMeta(null);
     try {
-      const countRes = await fetch("/api/scan?countOnly=1", { cache: "no-store" });
-      const countJson = (await countRes.json()) as { total?: number };
+      const total = await fetchScanCount();
       if (seq !== requestSeq.current) return;
-      const total = countJson.total ?? 0;
 
       const batchSize = 120;
       let offset = 0;
@@ -144,21 +138,8 @@ export function Dashboard() {
       let latestVerification: RunResponse["verification"] | null = null;
 
       while (true) {
-        const res = await fetch(
-          `/api/scan?horizon=${nextHorizon}&offset=${offset}&limit=${batchSize}`,
-          { cache: "no-store" },
-        );
-        const json = (await res.json()) as RunResponse & {
-          error?: string;
-          scanned?: number;
-          passed?: number;
-          buyCount?: number;
-          total?: number;
-          processed?: number;
-          done?: boolean;
-        };
+        const json = await fetchScanBatch(nextHorizon, offset, batchSize);
         if (seq !== requestSeq.current) return;
-        if (!res.ok) throw new Error(json.error ?? "US buy scan failed");
 
         processed = json.processed ?? processed + (json.scanned ?? 0);
         passed += json.passed ?? 0;
@@ -294,9 +275,8 @@ export function Dashboard() {
     const q = query.trim();
     if (!q) return;
     const t = window.setTimeout(async () => {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const json = (await res.json()) as { results: SearchHit[] };
-      setHits(json.results ?? []);
+      const results = await fetchSearch(q);
+      setHits(results);
       setSearchOpen(true);
     }, 220);
     return () => window.clearTimeout(t);

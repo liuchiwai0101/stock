@@ -1,0 +1,64 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+      - cursor/github-pages-full-ea33
+    paths-ignore:
+      - "docs/**"
+      - "_next/**"
+      - "data/**"
+      - "trades/**"
+      - "monitor/**"
+      - "learn/**"
+      - "pnl/**"
+      - "_not-found/**"
+      - "404/**"
+      - "index.html"
+      - "index.txt"
+      - "404.html"
+      - ".nojekyll"
+      - "favicon.ico"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  publish-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Build static site
+        run: npm run build:pages
+
+      - name: Commit GitHub Pages files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs .nojekyll index.html index.txt 404.html 404 _next data trades monitor learn pnl _not-found favicon.ico file.svg globe.svg next.svg vercel.svg window.svg
+          if git diff --staged --quiet; then
+            echo "No Pages changes"
+            exit 0
+          fi
+          git commit -m "Publish GitHub Pages site"
+          git push

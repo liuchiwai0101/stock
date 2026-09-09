@@ -1,3 +1,5 @@
+import { fetchMarks as fetchQuoteMarks } from "@/lib/desk-fetch";
+import { STATIC_DESK } from "@/lib/static-mode";
 import { updatePolicy, type AdaptivePolicy } from "@/lib/adaptive-policy";
 import { costAwareFillWinRate, costAwarePnL } from "@/lib/cost-aware";
 import { evaluateHorizon, evaluatePrediction, horizonHitRate, liveHitRate } from "@/lib/evaluate-predictions";
@@ -31,11 +33,8 @@ async function fetchMarks(symbols: string[]): Promise<Record<string, number>> {
   const marks: Record<string, number> = {};
   for (let i = 0; i < unique.length; i += 30) {
     const chunk = unique.slice(i, i + 30);
-    const res = await fetch(`/api/quotes?symbols=${encodeURIComponent(chunk.join(","))}`, {
-      cache: "no-store",
-    });
-    const json = (await res.json()) as { quotes?: { symbol: string; last: number }[] };
-    for (const q of json.quotes ?? []) {
+    const { quotes } = await fetchQuoteMarks(chunk);
+    for (const q of quotes) {
       if (q.last > 0) marks[q.symbol] = q.last;
     }
   }
@@ -43,6 +42,7 @@ async function fetchMarks(symbols: string[]): Promise<Record<string, number>> {
 }
 
 async function pullRemoteLog(): Promise<LoggedPrediction[] | null> {
+  if (STATIC_DESK) return null;
   try {
     const res = await fetch("/api/learn-log", { cache: "no-store" });
     if (!res.ok) return null;
@@ -54,6 +54,7 @@ async function pullRemoteLog(): Promise<LoggedPrediction[] | null> {
 }
 
 async function pushRemoteLog(predictions: LoggedPrediction[], policy: AdaptivePolicy) {
+  if (STATIC_DESK) return;
   try {
     await fetch("/api/learn-log", {
       method: "POST",

@@ -47,15 +47,13 @@ Open [http://localhost:43123](http://localhost:43123).
 
 ## Deploy and run on GitHub
 
-This app uses Next.js API routes (`/api/run`, `/api/scan`, `/api/quotes`, etc.), so it needs a Node.js server. GitHub Pages (static hosting) cannot run those APIs.
+**Live site:** [https://liuchiwai0101.github.io/stock/](https://liuchiwai0101.github.io/stock/)
 
-### Docker (GitHub Container Registry)
+GitHub Pages runs the desk in the browser (quotes are snapshotted at deploy time). Monitor, Learn, P&amp;L, and Trades are included. Pushing to `main` rebuilds the site.
 
-Every push to `main` or a `cursor/**` branch publishes:
+### Docker (full Node server)
 
-`ghcr.io/liuchiwai0101/stock:run`
-
-Run it:
+For live Yahoo quotes and server-side scan, run the GHCR image:
 
 ```bash
 docker run --rm -p 43123:43123 ghcr.io/liuchiwai0101/stock:run
