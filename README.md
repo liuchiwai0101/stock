@@ -36,6 +36,14 @@ npm test                 # 17 checks — models, ensemble, backtest, pipeline
 curl localhost:43123/api/verify
 ```
 
+## Review on GitHub
+
+**Public site (not localhost):** [https://liuchiwai0101.github.io/stock/](https://liuchiwai0101.github.io/stock/)
+
+GitHub Pages publishes from **`main`**. The built desk (plus `.nojekyll`) lives at the repo root so the URL works off your computer.
+
+Quotes are snapshotted at deploy time; the 10 models still run in the browser.
+
 ## Run
 
 ```bash
