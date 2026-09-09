@@ -1,9 +1,18 @@
 import type { DailyPick } from "@/lib/pick-score";
 import { getLatestDailyScan } from "@/lib/scan-history";
 import type { CompanyForecast, Horizon } from "@/lib/types";
+import { scopedStorageKey } from "@/lib/account";
 
-const STORAGE_KEY = "signal-desk-us-scan-v1";
-const PARTIAL_KEY = "signal-desk-us-scan-partial";
+const STORAGE_BASE = "signal-desk-us-scan-v1";
+const PARTIAL_BASE = "signal-desk-us-scan-partial";
+
+function storageKey() {
+  return typeof window === "undefined" ? STORAGE_BASE : scopedStorageKey(STORAGE_BASE);
+}
+
+function partialKey() {
+  return typeof window === "undefined" ? PARTIAL_BASE : scopedStorageKey(PARTIAL_BASE);
+}
 
 export type SavedScan = {
   horizon: Horizon;
@@ -97,7 +106,8 @@ export function pickToForecast(pick: DailyPick, horizon: Horizon): CompanyForeca
 export function loadSavedScan(): SavedScan | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(storageKey()) ?? window.localStorage.getItem(STORAGE_BASE);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SavedScan>;
     if (!parsed.quotes || !Array.isArray(parsed.quotes) || !parsed.scanMeta) return null;
@@ -120,7 +130,8 @@ export function loadSavedScan(): SavedScan | null {
 export function loadPartialScan(): SavedScan | null {
   if (typeof window === "undefined") return null;
   try {
-    const raw = window.sessionStorage.getItem(PARTIAL_KEY);
+    const raw =
+      window.sessionStorage.getItem(partialKey()) ?? window.sessionStorage.getItem(PARTIAL_BASE);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SavedScan>;
     if (!parsed.quotes || !Array.isArray(parsed.quotes) || !parsed.scanMeta) return null;
@@ -170,16 +181,16 @@ export function saveSavedScan(scan: SavedScan) {
   if (typeof window === "undefined") return;
   const slim = slimScan(scan);
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(slim));
-    window.sessionStorage.removeItem(PARTIAL_KEY);
+    window.localStorage.setItem(storageKey(), JSON.stringify(slim));
+    window.sessionStorage.removeItem(partialKey());
   } catch {
     try {
       const smaller = {
         ...slim,
         quotes: slim.quotes.slice(0, 250),
       };
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(smaller));
-      window.sessionStorage.removeItem(PARTIAL_KEY);
+      window.localStorage.setItem(storageKey(), JSON.stringify(smaller));
+      window.sessionStorage.removeItem(partialKey());
     } catch {
       // Preview still available in session until tab closes.
     }
@@ -189,7 +200,7 @@ export function saveSavedScan(scan: SavedScan) {
 export function savePartialScan(scan: SavedScan) {
   if (typeof window === "undefined") return;
   try {
-    window.sessionStorage.setItem(PARTIAL_KEY, JSON.stringify(slimScan(scan)));
+    window.sessionStorage.setItem(partialKey(), JSON.stringify(slimScan(scan)));
   } catch {
     // Ignore quota errors for partial preview.
   }
@@ -197,11 +208,11 @@ export function savePartialScan(scan: SavedScan) {
 
 export function clearPartialScan() {
   if (typeof window === "undefined") return;
-  window.sessionStorage.removeItem(PARTIAL_KEY);
+  window.sessionStorage.removeItem(partialKey());
 }
 
 export function clearSavedScan() {
   if (typeof window === "undefined") return;
-  window.localStorage.removeItem(STORAGE_KEY);
-  window.sessionStorage.removeItem(PARTIAL_KEY);
+  window.localStorage.removeItem(storageKey());
+  window.sessionStorage.removeItem(partialKey());
 }

@@ -9,6 +9,7 @@ import { ensureChineseNames } from "@/lib/chinese-names-store";
 import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import { selectTopPicks } from "@/lib/pick-score";
 import { clearPartialScan, loadPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
+import { getAccountSnapshot, pushGuestScan, pushUserData } from "@/lib/account-store";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
@@ -208,6 +209,26 @@ export function Dashboard() {
           clearPartialScan();
           setRun(finalRun);
           setScanMeta(finalMeta);
+          if (getAccountSnapshot()) void pushUserData();
+          else {
+            void pushGuestScan({
+              horizon: nextHorizon,
+              generatedAt: json.generatedAt,
+              scanMeta: finalMeta,
+              quotes: buys.slice(0, 80).map((q) => ({
+                symbol: q.symbol,
+                name: q.name,
+                last: q.last,
+                targetPrice: q.targetPrice,
+                expectedReturn: q.expectedReturn,
+                signal: q.signal,
+                confidence: q.confidence,
+                liveReady: q.liveReady,
+                hitRate: q.metrics.hitRate,
+                sharpe: q.backtest.sharpe,
+              })),
+            });
+          }
           if (errorCount > 0) {
             setError(
               `Scan finished with ${errorCount} data issues across ${json.total ?? total} tickers. Showing ${buys.length} BUY names that passed.`,
@@ -256,6 +277,7 @@ export function Dashboard() {
   useEffect(() => {
     if (!selectionReady) return;
     saveSelection({ symbols, active, horizon });
+    if (getAccountSnapshot()) void pushUserData();
   }, [symbols, active, horizon, selectionReady]);
 
   useEffect(() => {
@@ -394,10 +416,10 @@ export function Dashboard() {
       />
 
       <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
-        <section className="flex flex-col gap-3">
+        <section className="sticky top-[3.25rem] z-20 -mx-4 space-y-3 border-b border-white/6 bg-[#0b1016]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-white/40">
-              Tickers stay saved here. Full trade list lives on{" "}
+              Tickers stay saved to your account or this browser. Full trade list lives on{" "}
               <Link href="/trades" className="text-sky-300 hover:underline">
                 Trade records
               </Link>
@@ -442,6 +464,34 @@ export function Dashboard() {
               )}
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
+              <div className="inline-flex shrink-0 rounded-lg border border-white/10 bg-white/3 p-0.5">
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void load(symbols, horizon)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1.5 text-xs transition",
+                    viewMode === "watch"
+                      ? "bg-sky-400/15 text-sky-100"
+                      : "text-white/55 hover:bg-white/5 hover:text-white/85",
+                  )}
+                >
+                  Watchlist
+                </button>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() => void scanBuyList(horizon)}
+                  className={cn(
+                    "rounded-md px-2.5 py-1.5 text-xs transition",
+                    viewMode === "buyList"
+                      ? "bg-sky-400/15 text-sky-100"
+                      : "text-white/55 hover:bg-white/5 hover:text-white/85",
+                  )}
+                >
+                  US buys
+                </button>
+              </div>
               {HORIZONS.map((h) => (
                 <Button
                   key={h.value}
@@ -458,18 +508,13 @@ export function Dashboard() {
               </Button>
               <Button
                 size="sm"
-                variant={viewMode === "buyList" ? "default" : "outline"}
+                variant="outline"
                 onClick={() => void scanBuyList(horizon)}
                 disabled={loading}
               >
                 {loading && viewMode === "buyList" ? <LoaderCircle className="animate-spin" /> : <Radar />}
-                Scan US buys
+                Scan full US
               </Button>
-              {viewMode === "buyList" ? (
-                <Button size="sm" variant="ghost" onClick={() => void load(symbols, horizon)} disabled={loading}>
-                  My watchlist
-                </Button>
-              ) : null}
             </div>
           </div>
           <div className="flex flex-wrap gap-1.5">

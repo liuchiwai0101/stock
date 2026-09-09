@@ -1,7 +1,8 @@
 import type { Horizon } from "@/lib/types";
 import { DEFAULT_SYMBOLS } from "@/lib/universe";
+import { scopedStorageKey } from "@/lib/account";
 
-const STORAGE_KEY = "signal-desk-selection-v1";
+const STORAGE_BASE = "signal-desk-selection-v1";
 
 export type SavedSelection = {
   symbols: string[];
@@ -19,10 +20,15 @@ export function defaultSelection(): SavedSelection {
   };
 }
 
+function storageKey(): string {
+  return typeof window === "undefined" ? STORAGE_BASE : scopedStorageKey(STORAGE_BASE);
+}
+
 export function loadSelection(): SavedSelection {
   if (typeof window === "undefined") return defaultSelection();
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(storageKey()) ?? window.localStorage.getItem(STORAGE_BASE);
     if (!raw) return defaultSelection();
     const parsed = JSON.parse(raw) as Partial<SavedSelection>;
     const symbols = Array.isArray(parsed.symbols)
@@ -53,5 +59,5 @@ export function saveSelection(selection: SavedSelection) {
     active: selection.active,
     horizon: selection.horizon,
   };
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  window.localStorage.setItem(storageKey(), JSON.stringify(payload));
 }

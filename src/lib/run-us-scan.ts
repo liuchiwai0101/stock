@@ -80,6 +80,13 @@ export async function runFullUsScan(
         scanMeta: record.scanMeta,
         quotes: buys,
       });
+      try {
+        const { getAccountSnapshot, pushGuestScan, pushUserData } = await import("@/lib/account-store");
+        if (getAccountSnapshot()) void pushUserData();
+        else void pushGuestScan(record);
+      } catch {
+        // Sync is optional.
+      }
 
       return { scan: record, quotes: buys };
     }
