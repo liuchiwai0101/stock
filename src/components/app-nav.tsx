@@ -14,7 +14,7 @@ const LINKS = [
   { href: "/trades", label: "Trades", icon: ClipboardList },
 ] as const;
 
-/** Fixed top chrome — brand left, primary menu + Account padded to the right. */
+/** Fixed top chrome: brand left; primary menu + Account padded to the right. */
 export function AppNav({ subtitle }: { subtitle?: string }) {
   const pathname = usePathname();
 
