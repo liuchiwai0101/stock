@@ -43,7 +43,7 @@ jobs:
               base: 'main',
             });
 
-            const pr = prs.find((p) => p.head.sha === headSha) ?? prs[0];
+            let pr = prs.find((p) => p.head.sha === headSha) ?? prs[0];
             if (!pr) {
               core.info(`No open PR found for ${headBranch}@${headSha}`);
               return;
@@ -54,22 +54,34 @@ jobs:
               return;
             }
 
+            // REST cannot undraft — use GraphQL markPullRequestReadyForReview.
             if (pr.draft) {
-              await github.rest.pulls.update({
+              const { data: full } = await github.rest.pulls.get({
                 owner,
                 repo,
                 pull_number: pr.number,
-                draft: false,
               });
+              await github.graphql(
+                `mutation($id: ID!) {
+                  markPullRequestReadyForReview(input: { pullRequestId: $id }) {
+                    pullRequest { id isDraft }
+                  }
+                }`,
+                { id: full.node_id },
+              );
+              const refreshed = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: pr.number,
+              });
+              pr = refreshed.data;
+              if (pr.draft) {
+                core.setFailed(`PR #${pr.number} is still a draft after markReady`);
+                return;
+              }
               core.info(`Marked PR #${pr.number} ready for review`);
             }
 
-            // Ensure required checks on this head are still green.
-            const { data: status } = await github.rest.repos.getCombinedStatusForRef({
-              owner,
-              repo,
-              ref: pr.head.sha,
-            });
             const checkRuns = await github.paginate(github.rest.checks.listForRef, {
               owner,
               repo,
@@ -77,11 +89,14 @@ jobs:
               per_page: 100,
             });
             const failed = checkRuns.filter(
-              (c) => c.conclusion && !['success', 'neutral', 'skipped'].includes(c.conclusion),
+              (c) =>
+                c.name !== 'merge' &&
+                c.conclusion &&
+                !['success', 'neutral', 'skipped'].includes(c.conclusion),
             );
             if (failed.length) {
               core.setFailed(
-                `Checks not green on ${pr.head.sha}: ${failed.map((c) => c.name).join(', ')}`,
+                `Checks not green on ${pr.head.sha}: ${failed.map((c) => `${c.name}=${c.conclusion}`).join(', ')}`,
               );
               return;
             }

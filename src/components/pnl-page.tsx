@@ -88,29 +88,7 @@ export function PnlPage() {
 
   return (
     <div className="flex min-h-full flex-col">
-      <AppNav
-        subtitle="Profit & loss review by period"
-        right={
-          <>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Equity</span>
-              <span className="font-mono text-xs sm:text-sm">{formatMoney(pnl.equity)}</span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Total P&L</span>
-              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(pnl.totalPnL))}>
-                {formatMoney(pnl.totalPnL)}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2 whitespace-nowrap">
-              <span className="text-[10px] tracking-wide text-white/40 uppercase">Return</span>
-              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(pnl.totalPnLPct))}>
-                {formatPct(pnl.totalPnLPct)}
-              </span>
-            </div>
-          </>
-        }
-      />
+      <AppNav subtitle="Profit & loss review by period" />
 
       <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
