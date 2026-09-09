@@ -31,6 +31,20 @@ export function ForecastChart({
   compact?: boolean;
 }) {
   const lastBar = quote.history[quote.history.length - 1];
+  if (!lastBar) {
+    return (
+      <div
+        className={
+          compact
+            ? "flex h-[200px] w-full items-center justify-center text-sm text-white/45 sm:h-[220px]"
+            : "flex h-[280px] w-full items-center justify-center text-sm text-white/45 sm:h-[320px]"
+        }
+      >
+        No price history yet for {quote.symbol}.
+      </div>
+    );
+  }
+
   const rows: Row[] = [
     ...quote.history.map((b) => ({ date: b.date, close: b.close })),
     {
@@ -50,8 +64,10 @@ export function ForecastChart({
     })),
   ];
 
-  const yMin = Math.min(...rows.flatMap((r) => [r.close, r.lo, r.forecast].filter((v): v is number => v != null))) * 0.985;
-  const yMax = Math.max(...rows.flatMap((r) => [r.close, r.hi, r.forecast].filter((v): v is number => v != null))) * 1.015;
+  const yMinVals = rows.flatMap((r) => [r.close, r.lo, r.forecast].filter((v): v is number => v != null));
+  const yMaxVals = rows.flatMap((r) => [r.close, r.hi, r.forecast].filter((v): v is number => v != null));
+  const yMin = (yMinVals.length ? Math.min(...yMinVals) : lastBar.close) * 0.985;
+  const yMax = (yMaxVals.length ? Math.max(...yMaxVals) : lastBar.close) * 1.015;
 
   return (
     <div className={compact ? "h-[200px] w-full sm:h-[220px]" : "h-[280px] w-full sm:h-[320px]"}>

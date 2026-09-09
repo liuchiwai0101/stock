@@ -407,9 +407,10 @@ export function Dashboard() {
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-6 px-4 py-5 sm:px-6 sm:py-6">
-        <section className="sticky top-14 z-20 -mx-4 space-y-3 border-b border-white/6 bg-[#0b1016]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6">
+        {/* Sticky only from sm up — on phones the tall chrome was locking the viewport. */}
+        <section className="space-y-2 border-b border-white/6 bg-[#0b1016] pb-3 sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:space-y-3 sm:bg-[#0b1016]/95 sm:px-6 sm:py-3 sm:backdrop-blur-xl">
+          <div className="hidden flex-wrap items-center justify-between gap-2 sm:flex">
             <p className="text-xs text-white/40">
               Tickers stay saved to your account or this browser. Full trade list lives on{" "}
               <Link href="/trades" className="text-sky-300 hover:underline">
@@ -422,7 +423,7 @@ export function Dashboard() {
               {book.portfolio.fills.length === 1 ? "" : "s"} →
             </Link>
           </div>
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
             <div ref={searchRef} className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/35" />
               <Input
@@ -537,14 +538,14 @@ export function Dashboard() {
               </Button>
             </div>
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible">
             {symbols.map((symbol) => (
               <button
                 key={symbol}
                 type="button"
                 onClick={() => setActive(symbol)}
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition",
+                  "inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition",
                   active === symbol
                     ? "border-sky-400/40 bg-sky-400/15 text-sky-100"
                     : "border-white/10 bg-white/3 text-white/70 hover:bg-white/6",
@@ -554,9 +555,17 @@ export function Dashboard() {
                 <span
                   role="button"
                   tabIndex={0}
+                  aria-label={`Remove ${symbol}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     removeSymbol(symbol);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      removeSymbol(symbol);
+                    }
                   }}
                   className="rounded-full p-0.5 hover:bg-white/15"
                 >
@@ -571,7 +580,7 @@ export function Dashboard() {
                   key={c.symbol}
                   type="button"
                   onClick={() => addSymbol(c.symbol)}
-                  className="rounded-full border border-dashed border-white/12 px-2.5 py-1 text-xs text-white/40 hover:border-white/25 hover:text-white/70"
+                  className="shrink-0 rounded-full border border-dashed border-white/12 px-2.5 py-1 text-xs text-white/40 hover:border-white/25 hover:text-white/70"
                 >
                   + {c.symbol}
                 </button>
@@ -651,6 +660,9 @@ export function Dashboard() {
                 onBuy={buyStock}
                 onSell={sellStock}
                 onTradeAll={tradeAllSignals}
+                onAddSymbol={addSymbol}
+                onRemoveSymbol={removeSymbol}
+                watchlistSymbols={symbols}
                 heldShares={heldShares}
                 suggestedShares={(q) =>
                   Math.max(1, sharesForWeight(book.equity, q.last, q.recommendedWeight))

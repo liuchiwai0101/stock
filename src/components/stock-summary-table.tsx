@@ -42,8 +42,9 @@ type SortDir = "asc" | "desc";
 const RANK_COL = "w-8 min-w-8 max-w-8";
 const STOCK_COL_WATCH = "w-[11rem] min-w-[11rem] max-w-[11rem] sm:w-[14rem] sm:min-w-[14rem] sm:max-w-[14rem]";
 const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min-w-[12rem] sm:max-w-[12rem]";
-const STICKY_RANK = "sticky left-0 z-20";
-const STICKY_STOCK = "sticky left-8 z-20";
+/* Keep below sticky desk chrome (z-20) so mobile scroll doesn’t feel locked. */
+const STICKY_RANK = "sticky left-0 z-[5]";
+const STICKY_STOCK = "sticky left-8 z-[5]";
 const PRICE_COL = "whitespace-nowrap";
 const NUM_COL = "whitespace-nowrap";
 const TAG_COL = "whitespace-nowrap";
@@ -153,6 +154,9 @@ export function StockSummaryTable({
   onBuy,
   onSell,
   onTradeAll,
+  onAddSymbol,
+  onRemoveSymbol,
+  watchlistSymbols = [],
   heldShares = {},
   suggestedShares,
   mode = "watch",
@@ -165,6 +169,9 @@ export function StockSummaryTable({
   onBuy: (q: CompanyForecast, shares: number) => void;
   onSell: (q: CompanyForecast, shares: number) => void;
   onTradeAll: () => void;
+  onAddSymbol?: (symbol: string) => void;
+  onRemoveSymbol?: (symbol: string) => void;
+  watchlistSymbols?: string[];
   heldShares?: Record<string, number>;
   suggestedShares?: (q: CompanyForecast) => number;
   mode?: "watch" | "buyList";
@@ -175,10 +182,13 @@ export function StockSummaryTable({
   const [expanded, setExpanded] = useState<string | null>(null);
   const [tradeEditor, setTradeEditor] = useState<TradeEditor | null>(null);
   const [detailQuotes, setDetailQuotes] = useState<Record<string, CompanyForecast>>({});
+  const [detailLoading, setDetailLoading] = useState<Record<string, boolean>>({});
+  const [detailError, setDetailError] = useState<Record<string, string>>({});
   const [sort, setSort] = useState<{ column: SortColumn; dir: SortDir }>({
     column: buyList ? "hit" : "symbol",
     dir: buyList ? "desc" : "asc",
   });
+  const watchSet = useMemo(() => new Set(watchlistSymbols.map((s) => s.toUpperCase())), [watchlistSymbols]);
 
   const baseRows = useMemo(() => {
     return buyList ? quotes.filter((q) => q.liveReady && q.signal === "BUY") : quotes;
@@ -204,6 +214,40 @@ export function StockSummaryTable({
     );
   }
 
+  function loadDetail(symbol: string, q: CompanyForecast | undefined) {
+    const cached = detailQuotes[symbol];
+    const source = cached ?? q;
+    if (!source || source.history.length >= 5 || detailLoading[symbol]) return;
+
+    setDetailLoading((prev) => ({ ...prev, [symbol]: true }));
+    setDetailError((prev) => {
+      const next = { ...prev };
+      delete next[symbol];
+      return next;
+    });
+    void fetchRun([symbol], horizon)
+      .then((json) => {
+        const full = json.quotes?.[0];
+        if (full && full.history.length > 0) {
+          setDetailQuotes((prev) => ({ ...prev, [symbol]: full }));
+        } else {
+          setDetailError((prev) => ({
+            ...prev,
+            [symbol]: "Could not load chart history for this ticker.",
+          }));
+        }
+      })
+      .catch(() => {
+        setDetailError((prev) => ({
+          ...prev,
+          [symbol]: "Could not load chart history for this ticker.",
+        }));
+      })
+      .finally(() => {
+        setDetailLoading((prev) => ({ ...prev, [symbol]: false }));
+      });
+  }
+
   function toggleRow(symbol: string) {
     if (expanded === symbol) {
       setExpanded(null);
@@ -211,18 +255,7 @@ export function StockSummaryTable({
     }
     setExpanded(symbol);
     onSelect(symbol);
-
-    const q = quotes.find((row) => row.symbol === symbol);
-    if (q && q.history.length < 5 && !detailQuotes[symbol]) {
-      void fetchRun([symbol], horizon)
-        .then((json) => {
-          const full = json.quotes?.[0];
-          if (full) {
-            setDetailQuotes((prev) => ({ ...prev, [symbol]: full }));
-          }
-        })
-        .catch(() => undefined);
-    }
+    loadDetail(symbol, quotes.find((row) => row.symbol === symbol));
   }
 
   return (
@@ -235,16 +268,16 @@ export function StockSummaryTable({
           <CardDescription>
             {buyList
               ? scanMeta
-                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · click a column to sort`
-                : "Full U.S. listed stock scan · Pass + BUY · click a column to sort"
-              : "Compact watchlist — stock column stays fixed · tap a row for chart and model leans"}
+                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap ▸ for chart · Add/Remove for watchlist`
+                : "Full U.S. listed stock scan · Pass + BUY · tap ▸ for chart · Add/Remove for watchlist"
+              : "Compact watchlist — stock column stays fixed · tap a row for chart · Add/Remove edits the list"}
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
           Trade verified
         </Button>
       </CardHeader>
-      <CardContent className={buyList ? "overflow-x-auto" : "overflow-x-hidden"}>
+      <CardContent className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/45">
             {buyList
@@ -252,7 +285,7 @@ export function StockSummaryTable({
               : "Add tickers and run the model."}
           </p>
         ) : (
-          <table className={cn("w-full text-left text-sm", buyList ? "w-max min-w-full" : "table-fixed")}>
+          <table className={cn("w-full text-left text-sm", buyList ? "w-max min-w-full" : "min-w-[36rem] table-fixed")}>
             <colgroup>
               <col className="w-8" />
               <col className={buyList ? "w-[12rem]" : "w-[14rem]"} />
@@ -366,8 +399,12 @@ export function StockSummaryTable({
                       >
                         <button
                           type="button"
-                          onClick={() => toggleRow(q.symbol)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRow(q.symbol);
+                          }}
                           className="flex w-full min-w-0 items-center gap-1 overflow-hidden text-left"
+                          aria-expanded={isOpen}
                         >
                           <span className="inline-block w-3 shrink-0 text-white/35">{isOpen ? "▾" : "▸"}</span>
                           <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
@@ -406,6 +443,31 @@ export function StockSummaryTable({
                       </td>
                       <td className={cn(ACTION_COL, "py-1.5 text-right")}>
                         <div className="flex justify-end gap-1">
+                          {onAddSymbol && onRemoveSymbol ? (
+                            watchSet.has(q.symbol.toUpperCase()) ? (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onRemoveSymbol(q.symbol);
+                                }}
+                              >
+                                Remove
+                              </Button>
+                            ) : (
+                              <Button
+                                size="xs"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAddSymbol(q.symbol);
+                                }}
+                              >
+                                Add
+                              </Button>
+                            )
+                          ) : null}
                           <Button
                             size="xs"
                             variant="outline"
@@ -504,7 +566,36 @@ export function StockSummaryTable({
                                 })}
                               </div>
                             ) : null}
-                            <ForecastChart quote={detailQuotes[q.symbol] ?? q} compact />
+                            {(() => {
+                              const detail = detailQuotes[q.symbol] ?? q;
+                              const loading = Boolean(detailLoading[q.symbol]);
+                              const err = detailError[q.symbol];
+                              if (loading && detail.history.length < 5) {
+                                return (
+                                  <div className="flex h-[200px] items-center justify-center text-sm text-white/45 sm:h-[220px]">
+                                    Loading chart for {q.symbol}…
+                                  </div>
+                                );
+                              }
+                              if (err && detail.history.length < 5) {
+                                return (
+                                  <div className="flex h-[160px] flex-col items-center justify-center gap-2 text-sm text-amber-200/85">
+                                    <span>{err}</span>
+                                    <Button
+                                      size="xs"
+                                      variant="outline"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        loadDetail(q.symbol, q);
+                                      }}
+                                    >
+                                      Retry
+                                    </Button>
+                                  </div>
+                                );
+                              }
+                              return <ForecastChart quote={detail} compact />;
+                            })()}
                           </div>
                         </td>
                       </tr>
