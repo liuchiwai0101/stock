@@ -467,8 +467,13 @@ export function Dashboard() {
               <div className="inline-flex shrink-0 rounded-lg border border-white/10 bg-white/3 p-0.5">
                 <button
                   type="button"
-                  disabled={loading}
-                  onClick={() => void load(symbols, horizon)}
+                  onClick={() => {
+                    // Cancel in-flight scan/load so the chrome stays usable and view switches immediately.
+                    requestSeq.current += 1;
+                    setLoading(false);
+                    setError(null);
+                    setViewMode("watch");
+                  }}
                   className={cn(
                     "rounded-md px-2.5 py-1.5 text-xs transition",
                     viewMode === "watch"
@@ -480,8 +485,31 @@ export function Dashboard() {
                 </button>
                 <button
                   type="button"
-                  disabled={loading}
-                  onClick={() => void scanBuyList(horizon)}
+                  onClick={() => {
+                    requestSeq.current += 1;
+                    setLoading(false);
+                    setError(null);
+                    setViewMode("buyList");
+                    const cached = loadPreviewScan();
+                    if (cached) {
+                      setRun({
+                        horizon: cached.horizon,
+                        generatedAt: cached.generatedAt,
+                        verification: null,
+                        quotes: cached.quotes,
+                        errors: [],
+                      });
+                      setScanMeta(cached.scanMeta);
+                      setActive((prev) =>
+                        cached.quotes.some((q) => q.symbol === prev)
+                          ? prev
+                          : (cached.quotes[0]?.symbol ?? prev),
+                      );
+                    } else {
+                      setRun(null);
+                      setScanMeta(null);
+                    }
+                  }}
                   className={cn(
                     "rounded-md px-2.5 py-1.5 text-xs transition",
                     viewMode === "buyList"

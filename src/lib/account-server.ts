@@ -94,7 +94,12 @@ export async function readUserData(userId: string): Promise<ServerUserData> {
 
 export async function writeUserData(userId: string, data: Omit<ServerUserData, "updatedAt">) {
   await ensureDirs();
-  const payload: ServerUserData = { ...data, updatedAt: new Date().toISOString() };
+  const prev = await readUserData(userId);
+  const payload: ServerUserData = {
+    ...prev,
+    ...Object.fromEntries(Object.entries(data).filter(([, v]) => v !== undefined)),
+    updatedAt: new Date().toISOString(),
+  };
   await writeFile(path.join(USER_DIR, `${userId}.json`), JSON.stringify(payload, null, 2), "utf8");
   return payload;
 }
