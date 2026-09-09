@@ -56,7 +56,9 @@ if (existsSync(api)) {
 }
 
 try {
+  run("npx", ["tsx", "--tsconfig", "tsconfig.json", "scripts/prefetch-us-universe.ts"]);
   run("npx", ["tsx", "--tsconfig", "tsconfig.json", "scripts/prefetch-quotes.ts"]);
+  run("npx", ["tsx", "--tsconfig", "tsconfig.json", "scripts/prefetch-us-scan.ts"]);
   run("npx", ["next", "build"], {
     GITHUB_PAGES: "true",
     NEXT_PUBLIC_STATIC_DESK: "true",

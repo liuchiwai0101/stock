@@ -40,3 +40,18 @@ describe("US equity universe parsing", () => {
     }
   });
 });
+
+describe("bundled US symbol file", () => {
+  it("reads string and object ticker rows", async () => {
+    const { parseUsSymbolFile } = await import("./us-symbols-file");
+    expect(
+      parseUsSymbolFile({
+        generatedAt: "2026-01-01T00:00:00.000Z",
+        count: 3,
+        symbols: ["AAPL", { symbol: "msft" }, { symbol: "NVDA", name: "NVIDIA" }],
+      }),
+    ).toEqual(["AAPL", "MSFT", "NVDA"]);
+    expect(parseUsSymbolFile({ symbols: [] })).toEqual([]);
+    expect(parseUsSymbolFile(null)).toEqual([]);
+  });
+});

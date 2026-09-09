@@ -75,23 +75,25 @@ export async function loadUsEquityUniverse(force = false): Promise<ListedCompany
 
 export async function usEquitySymbols(): Promise<string[]> {
   if (typeof window !== "undefined") {
-    try {
-      const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
-      const res = await fetch(`${base}/data/manifest.json`, { cache: "force-cache" });
-      if (res.ok) {
-        const json = (await res.json()) as { symbols?: string[] };
-        if (json.symbols?.length) return json.symbols;
-      }
-    } catch {
-      // Fall through to the built-in universe.
-    }
+    const { fetchPublicSymbolList } = await import("@/lib/us-symbols-file");
+    const bundled = await fetchPublicSymbolList(process.env.NEXT_PUBLIC_BASE_PATH ?? "");
+    if (bundled.length) return bundled;
     return universeSymbols();
   }
 
   try {
     const universe = await loadUsEquityUniverse();
-    return universe.map((c) => c.symbol);
+    if (universe.length > 500) return universe.map((c) => c.symbol);
   } catch {
-    return universeSymbols();
+    // Use the bundled NASDAQ/NYSE directory next.
   }
+
+  try {
+    const { readBundledSymbolList } = await import("@/lib/us-symbols-file-server");
+    const bundled = await readBundledSymbolList();
+    if (bundled.length) return bundled;
+  } catch {
+    // Fall through to the small built-in list.
+  }
+  return universeSymbols();
 }

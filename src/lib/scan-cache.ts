@@ -5,6 +5,7 @@ import { scopedStorageKey } from "@/lib/account";
 
 const STORAGE_BASE = "signal-desk-us-scan-v1";
 const PARTIAL_BASE = "signal-desk-us-scan-partial";
+const PUBLISHED_SCAN = "us-scan.json";
 
 function storageKey() {
   return typeof window === "undefined" ? STORAGE_BASE : scopedStorageKey(STORAGE_BASE);
@@ -151,7 +152,7 @@ export function loadPartialScan(): SavedScan | null {
   }
 }
 
-/** Best available scan preview: full cache → in-progress scan → daily top picks. */
+/** Best available scan preview: full cache → in-progress scan → published site scan → daily top picks. */
 export function loadPreviewScan(): SavedScan | null {
   const saved = loadSavedScan();
   if (saved?.quotes.length) return saved;
@@ -175,6 +176,41 @@ export function loadPreviewScan(): SavedScan | null {
   }
 
   return null;
+}
+
+export async function fetchPublishedUsScan(): Promise<SavedScan | null> {
+  if (typeof window === "undefined") return null;
+  try {
+    const base = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
+    const res = await fetch(`${base}/data/${PUBLISHED_SCAN}`, { cache: "force-cache" });
+    if (!res.ok) return null;
+    const parsed = (await res.json()) as Partial<SavedScan>;
+    if (!parsed.quotes || !Array.isArray(parsed.quotes) || !parsed.scanMeta) return null;
+    if (!parsed.quotes.length) return null;
+    return {
+      horizon: (parsed.horizon ?? 21) as Horizon,
+      generatedAt: parsed.generatedAt ?? new Date().toISOString(),
+      scanMeta: {
+        scanned: Number(parsed.scanMeta.scanned) || 0,
+        total: Number(parsed.scanMeta.total) || 0,
+        passed: Number(parsed.scanMeta.passed) || 0,
+        buyCount: Number(parsed.scanMeta.buyCount) || parsed.quotes.length,
+      },
+      quotes: parsed.quotes,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function loadBestPreviewScan(): Promise<SavedScan | null> {
+  const local = loadPreviewScan();
+  const published = await fetchPublishedUsScan();
+  if (!published?.quotes.length) return local;
+  if (!local?.quotes.length) return published;
+  const localN = Math.max(local.scanMeta.total, local.scanMeta.scanned);
+  const pubN = Math.max(published.scanMeta.total, published.scanMeta.scanned);
+  return pubN >= localN ? published : local;
 }
 
 export function saveSavedScan(scan: SavedScan) {

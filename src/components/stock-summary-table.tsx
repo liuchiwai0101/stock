@@ -270,7 +270,7 @@ export function StockSummaryTable({
             {buyList
               ? scanMeta
                 ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap ▸ for chart · Add/Remove for watchlist`
-                : "Full U.S. listed stock scan · Pass + BUY · tap ▸ for chart · Add/Remove for watchlist"
+                : "Full U.S. listed common-stock scan · Pass + BUY · tap ▸ for chart · Add/Remove for watchlist"
               : "Compact watchlist — stock column stays fixed · tap a row for chart · Add/Remove edits the list"}
           </CardDescription>
         </div>
