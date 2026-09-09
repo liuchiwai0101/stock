@@ -8,7 +8,7 @@ import { displayStockName } from "@/lib/chinese-names";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
 import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import { selectTopPicks } from "@/lib/pick-score";
-import { clearPartialScan, loadBestPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
+import { clearPartialScan, fetchPublishedUsScan, loadBestPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
 import { getAccountSnapshot, pushGuestScan, pushUserData } from "@/lib/account-store";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
@@ -18,6 +18,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { formatPct } from "@/lib/format";
+import { applyScanBatchBuys } from "@/lib/desk";
 import { fetchRun, fetchScanBatch, fetchScanCount, fetchSearch } from "@/lib/desk-fetch";
 import { STATIC_DESK } from "@/lib/static-mode";
 import { applyLiveQuote } from "@/lib/live-quote";
@@ -150,20 +151,47 @@ export function Dashboard() {
     setRunLoading(false);
     setScanLoading(true);
     setError(null);
-    setScanNotice(null);
+    setScanNotice("Scanning all U.S. listed stocks again…");
     setViewMode("buyList");
     setScanMeta(null);
     try {
+      const published = STATIC_DESK ? await fetchPublishedUsScan({ cacheBust: true }) : null;
       const total = await fetchScanCount(true);
       if (seq !== requestSeq.current) return;
 
-      const batchSize = 120;
+      const batchSize = STATIC_DESK ? 80 : 120;
       let offset = 0;
       let processed = 0;
       let passed = 0;
       let errorCount = 0;
+      const seededPassed = published?.scanMeta.passed ?? 0;
       const buyMap = new Map<string, CompanyForecast>();
       let latestVerification: RunResponse["verification"] | null = null;
+
+      if (published) {
+        for (const quote of published.quotes) buyMap.set(quote.symbol, quote);
+        const seeded = [...buyMap.values()].sort((a, b) => {
+          const hit = b.metrics.hitRate - a.metrics.hitRate;
+          if (Math.abs(hit) > 1e-9) return hit;
+          return b.confidence - a.confidence;
+        });
+        setRun({
+          horizon: nextHorizon,
+          generatedAt: published.generatedAt,
+          verification: null,
+          quotes: seeded,
+          errors: [],
+        });
+        setScanMeta({
+          scanned: 0,
+          total: published.scanMeta.total || total,
+          passed: seededPassed,
+          buyCount: seeded.length,
+        });
+        setActive((prev) =>
+          seeded.some((q) => q.symbol === prev) ? prev : (seeded[0]?.symbol ?? prev),
+        );
+      }
 
       while (true) {
         const json = await fetchScanBatch(nextHorizon, offset, batchSize, true);
@@ -171,12 +199,12 @@ export function Dashboard() {
 
         processed = json.processed ?? processed + (json.scanned ?? 0);
         passed += json.passed ?? 0;
-        errorCount += json.errors?.length ?? 0;
+        const skipped = STATIC_DESK
+          ? (json.errors ?? []).filter((e) => /No snapshot for /i.test(e.message)).length
+          : 0;
+        errorCount += (json.errors?.length ?? 0) - skipped;
         latestVerification = json.verification;
-
-        for (const quote of json.quotes) {
-          buyMap.set(quote.symbol, quote);
-        }
+        applyScanBatchBuys(buyMap, json.quotes, json.reviewed);
 
         const buys = [...buyMap.values()].sort((a, b) => {
           const hit = b.metrics.hitRate - a.metrics.hitRate;
@@ -194,7 +222,7 @@ export function Dashboard() {
         const progressMeta = {
           scanned: processed,
           total: json.total ?? total,
-          passed,
+          passed: STATIC_DESK ? Math.max(seededPassed, passed) : passed,
           buyCount: buys.length,
         };
         setScanMeta(progressMeta);
@@ -219,7 +247,7 @@ export function Dashboard() {
           const finalMeta = {
             scanned: processed,
             total: json.total ?? total,
-            passed,
+            passed: STATIC_DESK ? Math.max(seededPassed, passed) : passed,
             buyCount: buys.length,
           };
           saveSavedScan({
@@ -257,20 +285,24 @@ export function Dashboard() {
             });
           }
           if (errorCount > 0) {
+            setScanNotice(null);
             setError(
               `Scan finished with ${errorCount} data issues across ${json.total ?? total} tickers. Showing ${buys.length} BUY names that passed.`,
             );
-          } else if (STATIC_DESK) {
+          } else {
+            setError(null);
             setScanNotice(
-              `Loaded published full-U.S. scan · ${finalMeta.scanned.toLocaleString()} scanned · ${finalMeta.buyCount} BUY.`,
+              `Scan complete · ${finalMeta.scanned.toLocaleString()} scanned · ${finalMeta.buyCount} BUY`,
             );
           }
           break;
         }
         offset += batchSize;
+        if (STATIC_DESK) await new Promise((r) => setTimeout(r, 16));
       }
     } catch (err) {
       if (seq !== requestSeq.current) return;
+      setScanNotice(null);
       setError(err instanceof Error ? err.message : "US buy scan failed.");
       setScanMeta(null);
     } finally {
@@ -653,9 +685,7 @@ export function Dashboard() {
             {viewMode === "buyList"
               ? scanMeta
                 ? `Scanning ${scanMeta.scanned.toLocaleString()} / ${scanMeta.total.toLocaleString()} U.S. stocks for 1-year Pass + BUY…`
-                : STATIC_DESK
-                  ? "Loading published full U.S. scan…"
-                  : "Loading full U.S. stock universe…"
+                : "Scanning all U.S. listed stocks again…"
               : "Loading forecasts…"}
           </div>
         )}
