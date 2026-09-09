@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { formatPct } from "@/lib/format";
 import { fetchRun, fetchScanBatch, fetchScanCount, fetchSearch } from "@/lib/desk-fetch";
+import { STATIC_DESK } from "@/lib/static-mode";
 import { applyLiveQuote } from "@/lib/live-quote";
 import { usePriceMarks } from "@/hooks/use-price-marks";
 import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
@@ -44,7 +45,9 @@ export function Dashboard() {
   const [horizon, setHorizon] = useState<Horizon>(defaults.horizon);
   const [selectionReady, setSelectionReady] = useState(false);
   const [run, setRun] = useState<RunResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [runLoading, setRunLoading] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [scanNotice, setScanNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -58,6 +61,7 @@ export function Dashboard() {
   } | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
   const requestSeq = useRef(0);
+  const busy = runLoading || scanLoading;
 
   const priceSymbols = useMemo(() => {
     const set = new Set<string>(symbols);
@@ -104,13 +108,15 @@ export function Dashboard() {
   const load = useCallback(async (nextSymbols: string[], nextHorizon: Horizon) => {
     if (nextSymbols.length === 0) {
       setRun(null);
-      setLoading(false);
+      setRunLoading(false);
       setError("Add a company to run the forecast.");
       return;
     }
     const seq = ++requestSeq.current;
-    setLoading(true);
+    setScanLoading(false);
+    setRunLoading(true);
     setError(null);
+    setScanNotice(null);
     setViewMode("watch");
     setScanMeta(null);
     try {
@@ -135,18 +141,20 @@ export function Dashboard() {
       if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Could not run the model.");
     } finally {
-      if (seq === requestSeq.current) setLoading(false);
+      if (seq === requestSeq.current) setRunLoading(false);
     }
   }, []);
 
   const scanBuyList = useCallback(async (nextHorizon: Horizon) => {
     const seq = ++requestSeq.current;
-    setLoading(true);
+    setRunLoading(false);
+    setScanLoading(true);
     setError(null);
+    setScanNotice(null);
     setViewMode("buyList");
     setScanMeta(null);
     try {
-      const total = await fetchScanCount();
+      const total = await fetchScanCount(true);
       if (seq !== requestSeq.current) return;
 
       const batchSize = 120;
@@ -158,7 +166,7 @@ export function Dashboard() {
       let latestVerification: RunResponse["verification"] | null = null;
 
       while (true) {
-        const json = await fetchScanBatch(nextHorizon, offset, batchSize);
+        const json = await fetchScanBatch(nextHorizon, offset, batchSize, true);
         if (seq !== requestSeq.current) return;
 
         processed = json.processed ?? processed + (json.scanned ?? 0);
@@ -252,6 +260,10 @@ export function Dashboard() {
             setError(
               `Scan finished with ${errorCount} data issues across ${json.total ?? total} tickers. Showing ${buys.length} BUY names that passed.`,
             );
+          } else if (STATIC_DESK) {
+            setScanNotice(
+              `Loaded published full-U.S. scan · ${finalMeta.scanned.toLocaleString()} scanned · ${finalMeta.buyCount} BUY.`,
+            );
           }
           break;
         }
@@ -262,7 +274,7 @@ export function Dashboard() {
       setError(err instanceof Error ? err.message : "US buy scan failed.");
       setScanMeta(null);
     } finally {
-      if (seq === requestSeq.current) setLoading(false);
+      if (seq === requestSeq.current) setScanLoading(false);
     }
   }, []);
 
@@ -481,8 +493,10 @@ export function Dashboard() {
                   onClick={() => {
                     // Cancel in-flight scan/load so the chrome stays usable and view switches immediately.
                     requestSeq.current += 1;
-                    setLoading(false);
+                    setRunLoading(false);
+                    setScanLoading(false);
                     setError(null);
+                    setScanNotice(null);
                     setViewMode("watch");
                   }}
                   className={cn(
@@ -498,8 +512,10 @@ export function Dashboard() {
                   type="button"
                   onClick={() => {
                     requestSeq.current += 1;
-                    setLoading(false);
+                    setRunLoading(false);
+                    setScanLoading(false);
                     setError(null);
+                    setScanNotice(null);
                     setViewMode("buyList");
                     void loadBestPreviewScan().then((cached) => {
                       if (cached) {
@@ -542,17 +558,17 @@ export function Dashboard() {
                   {h.label}
                 </Button>
               ))}
-              <Button size="sm" variant="secondary" onClick={() => void load(symbols, horizon)} disabled={loading}>
-                {loading && viewMode === "watch" ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+              <Button size="sm" variant="secondary" onClick={() => void load(symbols, horizon)} disabled={runLoading}>
+                {runLoading ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
                 Run
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => void scanBuyList(horizon)}
-                disabled={loading}
+                disabled={scanLoading}
               >
-                {loading && viewMode === "buyList" ? <LoaderCircle className="animate-spin" /> : <Radar />}
+                {scanLoading ? <LoaderCircle className="animate-spin" /> : <Radar />}
                 Scan full US
               </Button>
             </div>
@@ -625,18 +641,26 @@ export function Dashboard() {
           </Card>
         )}
 
-        {loading && (
+        {scanNotice && viewMode === "buyList" ? (
+          <div className="rounded-lg border border-sky-400/20 bg-sky-400/8 px-3 py-2 text-sm text-sky-100">
+            {scanNotice}
+          </div>
+        ) : null}
+
+        {busy && (
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 px-3 py-2 text-sm text-white/65">
             <LoaderCircle className="size-4 animate-spin text-sky-300" />
             {viewMode === "buyList"
               ? scanMeta
                 ? `Scanning ${scanMeta.scanned.toLocaleString()} / ${scanMeta.total.toLocaleString()} U.S. stocks for 1-year Pass + BUY…`
-                : "Loading full U.S. stock universe…"
+                : STATIC_DESK
+                  ? "Loading published full U.S. scan…"
+                  : "Loading full U.S. stock universe…"
               : "Loading forecasts…"}
           </div>
         )}
 
-        {loading && !run && (
+        {busy && !run && (
           <div className="grid gap-4">
             <Card className="h-[220px] animate-pulse bg-white/4" />
             <Card className="h-[280px] animate-pulse bg-white/4" />
@@ -717,7 +741,7 @@ export function Dashboard() {
               </section>
             ) : null}
           </>
-        ) : viewMode === "buyList" && !loading ? (
+        ) : viewMode === "buyList" && !busy ? (
           <Card className="border-white/10 bg-[#10161d]">
             <CardHeader>
               <CardTitle className="text-base">Suggested buys</CardTitle>

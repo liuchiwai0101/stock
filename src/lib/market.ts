@@ -53,12 +53,18 @@ const YAHOO_CHART_HOSTS = [
 
 async function fetchYahoo(symbol: string, range: string): Promise<QuoteSeries> {
   let lastError: Error | null = null;
+  const inBrowser = typeof window !== "undefined";
+  const attempts = inBrowser ? 1 : 4;
 
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     const host = YAHOO_CHART_HOSTS[attempt % YAHOO_CHART_HOSTS.length];
     const url = `${host}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}&includePrePost=false&events=div%7Csplit&tsrc=finance`;
     try {
-      const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
+      const res = await fetch(url, {
+        headers: FETCH_HEADERS,
+        cache: "no-store",
+        signal: AbortSignal.timeout(inBrowser ? 6000 : 20000),
+      });
       if (!res.ok) throw new Error(`Yahoo ${res.status}`);
       const json = (await res.json()) as {
         chart?: {
@@ -113,7 +119,7 @@ async function fetchYahoo(symbol: string, range: string): Promise<QuoteSeries> {
       };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < 3) {
+      if (attempt < attempts - 1) {
         await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
       }
     }
@@ -127,7 +133,11 @@ async function fetchStooq(symbol: string): Promise<QuoteSeries> {
     throw new Error("Stooq US only");
   }
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol.toLowerCase())}.us&i=d`;
-  const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
+  const res = await fetch(url, {
+    headers: FETCH_HEADERS,
+    cache: "no-store",
+    signal: AbortSignal.timeout(typeof window === "undefined" ? 20000 : 6000),
+  });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const text = await res.text();
   const lines = text.trim().split("\n");
