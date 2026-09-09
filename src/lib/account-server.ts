@@ -35,7 +35,7 @@ function mergeVinSelection(existing: unknown): ReturnType<typeof vinDefaultSelec
       ...(Array.isArray(prev.symbols) ? prev.symbols.map((s) => String(s).toUpperCase()) : []),
       ...seeded.symbols,
     ]),
-  ].slice(0, 12);
+  ].slice(0, 20);
   return {
     symbols,
     active: symbols.includes(String(prev.active ?? "").toUpperCase())

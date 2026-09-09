@@ -209,14 +209,21 @@ async function loadStaticSnapshot(ticker: string): Promise<QuoteSeries | null> {
   }
 }
 
+function toYahooSymbol(ticker: string): string {
+  // Exchange suffixes must keep the dotted form (1810.HK, 000858.SZ).
+  if (/\.(HK|SS|SZ|TO|L|T|AX|NS|BO|KQ|KS)$/i.test(ticker)) return ticker;
+  // U.S. share-class dots become dashes (BRK.B → BRK-B).
+  return ticker.replace(/\./g, "-");
+}
+
 export async function loadQuote(symbol: string, range = "5y"): Promise<QuoteSeries> {
   const ticker = symbol.trim().toUpperCase();
-  if (!/^[A-Z0-9.^]{1,10}$/.test(ticker)) {
+  if (!/^[A-Z0-9.]{1,12}$/.test(ticker)) {
     throw new Error("Invalid ticker");
   }
   const snapshot = await loadStaticSnapshot(ticker);
   if (snapshot) return snapshot;
-  const yahooSymbol = ticker.replace(/\./g, "-");
+  const yahooSymbol = toYahooSymbol(ticker);
   try {
     const series = await fetchYahoo(yahooSymbol, range);
     return { ...series, symbol: ticker };

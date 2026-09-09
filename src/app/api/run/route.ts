@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const symbolsParam = req.nextUrl.searchParams.get("symbols") ?? "AAPL";
   const horizonRaw = Number(req.nextUrl.searchParams.get("horizon") ?? 21);
   const horizon = (ALLOWED.includes(horizonRaw as Horizon) ? horizonRaw : 21) as Horizon;
-  const symbols = [...new Set(symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 12);
+  const symbols = [...new Set(symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 20);
 
   if (symbols.length === 0) {
     return NextResponse.json({ error: "Pick at least one ticker." }, { status: 400 });

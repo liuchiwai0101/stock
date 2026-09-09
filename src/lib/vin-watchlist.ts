@@ -1,8 +1,9 @@
 /**
- * Default watchlist for account Vin — US-listed names from the Futu 持倉 screenshot.
- * HK/A-share tickers are omitted — desk forecasts U.S. symbols.
+ * Default watchlist for account Vin — names from the Futu 持倉 screenshots.
+ * Numeric HK/A codes are stored as Yahoo-style tickers (e.g. 1810.HK, 000858.SZ).
  */
 export const VIN_WATCHLIST_SYMBOLS = [
+  // US / OTC-style from Futu
   "TSLA",
   "SQQQ",
   "SPCX",
@@ -10,9 +11,18 @@ export const VIN_WATCHLIST_SYMBOLS = [
   "LMND",
   "CRCL",
   "CBRS",
+  // HK
+  "1810.HK", // 小米集團-W 01810
+  "0981.HK", // 中芯國際 00981
+  "0939.HK", // 建設銀行 00939
+  "7709.HK", // 南方東英 SK 海力士 07709
+  "100.HK", // MINIMAX-W 00100
+  // A-shares
+  "000858.SZ", // 五糧液
+  "601611.SS", // 中國核建
 ] as const;
 
-export const MAX_WATCHLIST_SYMBOLS = 12;
+export const MAX_WATCHLIST_SYMBOLS = 20;
 
 export function vinDefaultSelection(): {
   symbols: string[];

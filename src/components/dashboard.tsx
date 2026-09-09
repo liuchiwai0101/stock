@@ -317,7 +317,7 @@ export function Dashboard() {
     const next = symbol.toUpperCase();
     setSymbols((prev) => {
       if (prev.includes(next)) return prev;
-      if (prev.length >= 12) return [...prev.slice(1), next];
+      if (prev.length >= 20) return [...prev.slice(1), next];
       return [...prev, next];
     });
     setActive(next);
