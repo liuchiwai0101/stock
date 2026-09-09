@@ -97,6 +97,10 @@ export async function loginAccount(username: string, password: string): Promise<
   if (!verifyHardcodedPassword(account.username, password)) throw new Error("Wrong password");
   const at = new Date().toISOString();
   setSession({ userId: account.id, username: account.username, at });
+  if (account.username === "Vin" && typeof window !== "undefined") {
+    const { ensureVinWatchlistSeeded } = await import("@/lib/selection");
+    ensureVinWatchlistSeeded();
+  }
   return { id: account.id, username: account.username, createdAt: at };
 }
 

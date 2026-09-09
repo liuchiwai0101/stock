@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { formatPct } from "@/lib/format";
 import { fetchRun, fetchScanBatch, fetchScanCount, fetchSearch } from "@/lib/desk-fetch";
-import { defaultSelection, loadSelection, saveSelection } from "@/lib/selection";
+import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE } from "@/lib/universe";
@@ -248,6 +248,7 @@ export function Dashboard() {
   }, []);
 
   useEffect(() => {
+    ensureVinWatchlistSeeded();
     const saved = loadSelection();
     const cachedScan = loadPreviewScan();
     queueMicrotask(() => {
@@ -316,7 +317,7 @@ export function Dashboard() {
     const next = symbol.toUpperCase();
     setSymbols((prev) => {
       if (prev.includes(next)) return prev;
-      if (prev.length >= 6) return [...prev.slice(1), next];
+      if (prev.length >= 12) return [...prev.slice(1), next];
       return [...prev, next];
     });
     setActive(next);

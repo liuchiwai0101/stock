@@ -54,7 +54,7 @@ function policy() {
 }
 
 export async function runDesk(symbols: string[], horizon: Horizon): Promise<RunResponse> {
-  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 6);
+  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 12);
   if (unique.length === 0) {
     return {
       horizon,

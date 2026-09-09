@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { findHardcodedAccount, verifyHardcodedPassword } from "@/lib/hardcoded-accounts";
+import { vinDefaultSelection } from "@/lib/vin-watchlist";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const USER_DIR = path.join(DATA_DIR, "users");
@@ -26,10 +27,35 @@ async function ensureDirs() {
   await mkdir(GUEST_DIR, { recursive: true });
 }
 
+function mergeVinSelection(existing: unknown): ReturnType<typeof vinDefaultSelection> {
+  const seeded = vinDefaultSelection();
+  const prev = (existing ?? {}) as { symbols?: string[]; active?: string; horizon?: number };
+  const symbols = [
+    ...new Set([
+      ...(Array.isArray(prev.symbols) ? prev.symbols.map((s) => String(s).toUpperCase()) : []),
+      ...seeded.symbols,
+    ]),
+  ].slice(0, 12);
+  return {
+    symbols,
+    active: symbols.includes(String(prev.active ?? "").toUpperCase())
+      ? String(prev.active).toUpperCase()
+      : seeded.active,
+    horizon: 21,
+  };
+}
+
 export async function loginServerAccount(username: string, password: string): Promise<ServerAccount> {
   const account = findHardcodedAccount(username);
   if (!account) throw new Error("Account not found");
   if (!verifyHardcodedPassword(account.username, password)) throw new Error("Wrong password");
+  if (account.username === "Vin") {
+    const data = await readUserData(account.id);
+    await writeUserData(account.id, {
+      ...data,
+      selection: mergeVinSelection(data.selection),
+    });
+  }
   return {
     id: account.id,
     username: account.username,
