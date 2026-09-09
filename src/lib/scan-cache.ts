@@ -28,6 +28,7 @@ export type SavedScan = {
 };
 
 /** Strip heavy series data so large scans fit in localStorage. */
+/** Deploy nudge after PR #20 so Pages prefetches BUY quote charts. */
 export function slimForecastForCache(q: CompanyForecast): CompanyForecast {
   return {
     ...q,
