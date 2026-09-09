@@ -1,4 +1,4 @@
-import { runDesk, scanBuyBatch, scanCount, searchDesk, loadMarks } from "@/lib/desk";
+import { runDesk, scanCount, searchDesk, loadMarks } from "@/lib/desk";
 import { STATIC_DESK } from "@/lib/static-mode";
 import { fetchPublishedUsScan } from "@/lib/scan-cache";
 import type { Horizon, RunResponse } from "@/lib/types";
@@ -54,9 +54,9 @@ export async function fetchRun(symbols: string[], horizon: Horizon): Promise<Run
   return body;
 }
 
-export async function fetchScanCount(): Promise<number> {
+export async function fetchScanCount(refresh = false): Promise<number> {
   if (STATIC_DESK) {
-    const published = await fetchPublishedUsScan();
+    const published = await fetchPublishedUsScan({ cacheBust: refresh });
     if (published?.scanMeta.total) return published.scanMeta.total;
     return scanCount();
   }
@@ -69,11 +69,14 @@ export async function fetchScanBatch(
   horizon: Horizon,
   offset: number,
   limit: number,
+  refresh = false,
 ): Promise<ScanBatchResponse> {
   if (STATIC_DESK) {
-    const published = await fetchPublishedUsScan();
+    const published = await fetchPublishedUsScan({ cacheBust: refresh });
     if (published) return publishedToBatch(published, offset, limit);
-    return scanBuyBatch(horizon, offset, limit);
+    throw new Error(
+      "Published U.S. scan is missing. GitHub Pages cannot live-scan every listed name in the browser.",
+    );
   }
   const res = await fetch(`/api/scan?horizon=${horizon}&offset=${offset}&limit=${limit}`, {
     cache: "no-store",

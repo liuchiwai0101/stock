@@ -178,11 +178,12 @@ export function loadPreviewScan(): SavedScan | null {
   return null;
 }
 
-export async function fetchPublishedUsScan(): Promise<SavedScan | null> {
+export async function fetchPublishedUsScan(opts?: { cacheBust?: boolean }): Promise<SavedScan | null> {
   if (typeof window === "undefined") return null;
   try {
     const base = (process.env.NEXT_PUBLIC_BASE_PATH ?? "").replace(/\/$/, "");
-    const res = await fetch(`${base}/data/${PUBLISHED_SCAN}`, { cache: "force-cache" });
+    const url = `${base}/data/${PUBLISHED_SCAN}${opts?.cacheBust ? `?t=${Date.now()}` : ""}`;
+    const res = await fetch(url, { cache: opts?.cacheBust ? "no-store" : "force-cache" });
     if (!res.ok) return null;
     const parsed = (await res.json()) as Partial<SavedScan>;
     if (!parsed.quotes || !Array.isArray(parsed.quotes) || !parsed.scanMeta) return null;
