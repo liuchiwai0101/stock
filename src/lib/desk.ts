@@ -107,7 +107,7 @@ export async function scanBuyBatch(
   const concurrency = typeof window === "undefined" ? 10 : 4;
   const scanned = await mapPool(batch, concurrency, async (symbol) => {
     try {
-      const series = await loadQuote(symbol);
+      const series = await loadQuote(symbol, "5y", { allowSimulated: false });
       return slimQuote(runForecast(series, horizon, policy()));
     } catch (err) {
       errors.push({

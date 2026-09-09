@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const errors: RunResponse["errors"] = [];
   const scanned = await mapPool(batch, CONCURRENCY, async (symbol) => {
     try {
-      const series = await loadQuote(symbol);
+      const series = await loadQuote(symbol, "5y", { allowSimulated: false });
       return slimQuote(runForecast(series, horizon, policy));
     } catch (err) {
       errors.push({

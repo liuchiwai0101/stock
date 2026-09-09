@@ -216,7 +216,11 @@ function toYahooSymbol(ticker: string): string {
   return ticker.replace(/\./g, "-");
 }
 
-export async function loadQuote(symbol: string, range = "5y"): Promise<QuoteSeries> {
+export async function loadQuote(
+  symbol: string,
+  range = "5y",
+  opts?: { allowSimulated?: boolean },
+): Promise<QuoteSeries> {
   const ticker = symbol.trim().toUpperCase();
   if (!/^[A-Z0-9.]{1,12}$/.test(ticker)) {
     throw new Error("Invalid ticker");
@@ -231,6 +235,9 @@ export async function loadQuote(symbol: string, range = "5y"): Promise<QuoteSeri
     try {
       return await fetchStooq(ticker);
     } catch {
+      if (opts?.allowSimulated === false) {
+        throw new Error("No market data");
+      }
       return simulateSeries(ticker);
     }
   }

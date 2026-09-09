@@ -1,8 +1,47 @@
 import { runDesk, scanBuyBatch, scanCount, searchDesk, loadMarks } from "@/lib/desk";
 import { STATIC_DESK } from "@/lib/static-mode";
+import { fetchPublishedUsScan } from "@/lib/scan-cache";
 import type { Horizon, RunResponse } from "@/lib/types";
 import type { SearchHit } from "@/lib/market";
 import type { ScanBatchResponse, QuoteMark } from "@/lib/desk";
+
+function publishedToBatch(published: NonNullable<Awaited<ReturnType<typeof fetchPublishedUsScan>>>, offset: number, limit: number): ScanBatchResponse {
+  const total = Math.max(published.scanMeta.total, published.scanMeta.scanned, 0);
+  if (offset > 0) {
+    return {
+      mode: "buy-scan",
+      horizon: published.horizon,
+      generatedAt: published.generatedAt,
+      verification: null,
+      quotes: [],
+      errors: [],
+      scanned: 0,
+      passed: 0,
+      buyCount: published.quotes.length,
+      total,
+      offset,
+      limit,
+      processed: total,
+      done: true,
+    };
+  }
+  return {
+    mode: "buy-scan",
+    horizon: published.horizon,
+    generatedAt: published.generatedAt,
+    verification: null,
+    quotes: published.quotes,
+    errors: [],
+    scanned: published.scanMeta.scanned || total,
+    passed: published.scanMeta.passed,
+    buyCount: published.quotes.length,
+    total,
+    offset: 0,
+    limit: total || limit,
+    processed: published.scanMeta.scanned || total,
+    done: true,
+  };
+}
 
 export async function fetchRun(symbols: string[], horizon: Horizon): Promise<RunResponse> {
   if (STATIC_DESK) return runDesk(symbols, horizon);
@@ -16,7 +55,11 @@ export async function fetchRun(symbols: string[], horizon: Horizon): Promise<Run
 }
 
 export async function fetchScanCount(): Promise<number> {
-  if (STATIC_DESK) return scanCount();
+  if (STATIC_DESK) {
+    const published = await fetchPublishedUsScan();
+    if (published?.scanMeta.total) return published.scanMeta.total;
+    return scanCount();
+  }
   const res = await fetch("/api/scan?countOnly=1", { cache: "no-store" });
   const json = (await res.json()) as { total?: number };
   return json.total ?? 0;
@@ -27,7 +70,11 @@ export async function fetchScanBatch(
   offset: number,
   limit: number,
 ): Promise<ScanBatchResponse> {
-  if (STATIC_DESK) return scanBuyBatch(horizon, offset, limit);
+  if (STATIC_DESK) {
+    const published = await fetchPublishedUsScan();
+    if (published) return publishedToBatch(published, offset, limit);
+    return scanBuyBatch(horizon, offset, limit);
+  }
   const res = await fetch(`/api/scan?horizon=${horizon}&offset=${offset}&limit=${limit}`, {
     cache: "no-store",
   });

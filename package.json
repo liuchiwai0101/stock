@@ -10,6 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prefetch:quotes": "tsx --tsconfig tsconfig.json scripts/prefetch-quotes.ts",
+    "prefetch:universe": "tsx --tsconfig tsconfig.json scripts/prefetch-us-universe.ts",
+    "prefetch:us-scan": "tsx --tsconfig tsconfig.json scripts/prefetch-us-scan.ts",
     "build:pages": "node scripts/build-pages.mjs"
   },
   "dependencies": {

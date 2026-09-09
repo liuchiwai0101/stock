@@ -8,7 +8,7 @@ import { displayStockName } from "@/lib/chinese-names";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
 import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import { selectTopPicks } from "@/lib/pick-score";
-import { clearPartialScan, loadPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
+import { clearPartialScan, loadBestPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
 import { getAccountSnapshot, pushGuestScan, pushUserData } from "@/lib/account-store";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
@@ -250,8 +250,7 @@ export function Dashboard() {
   useEffect(() => {
     ensureVinWatchlistSeeded();
     const saved = loadSelection();
-    const cachedScan = loadPreviewScan();
-    queueMicrotask(() => {
+    void loadBestPreviewScan().then((cachedScan) => {
       setSymbols(saved.symbols);
       setActive(saved.active);
       setHorizon(saved.horizon);
@@ -483,25 +482,26 @@ export function Dashboard() {
                     setLoading(false);
                     setError(null);
                     setViewMode("buyList");
-                    const cached = loadPreviewScan();
-                    if (cached) {
-                      setRun({
-                        horizon: cached.horizon,
-                        generatedAt: cached.generatedAt,
-                        verification: null,
-                        quotes: cached.quotes,
-                        errors: [],
-                      });
-                      setScanMeta(cached.scanMeta);
-                      setActive((prev) =>
-                        cached.quotes.some((q) => q.symbol === prev)
-                          ? prev
-                          : (cached.quotes[0]?.symbol ?? prev),
-                      );
-                    } else {
-                      setRun(null);
-                      setScanMeta(null);
-                    }
+                    void loadBestPreviewScan().then((cached) => {
+                      if (cached) {
+                        setRun({
+                          horizon: cached.horizon,
+                          generatedAt: cached.generatedAt,
+                          verification: null,
+                          quotes: cached.quotes,
+                          errors: [],
+                        });
+                        setScanMeta(cached.scanMeta);
+                        setActive((prev) =>
+                          cached.quotes.some((q) => q.symbol === prev)
+                            ? prev
+                            : (cached.quotes[0]?.symbol ?? prev),
+                        );
+                      } else {
+                        setRun(null);
+                        setScanMeta(null);
+                      }
+                    });
                   }}
                   className={cn(
                     "rounded-md px-2.5 py-1.5 text-xs transition",
@@ -633,7 +633,7 @@ export function Dashboard() {
                 </h2>
                 <p className="text-sm text-white/45">
                   {viewMode === "buyList"
-                    ? `Saved U.S. scan · ${run.horizon}d horizon · click Scan US buys to refresh`
+                    ? `Saved U.S. listed scan · ${run.horizon}d horizon · click Scan full US to refresh`
                     : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
                 </p>
                 {viewMode === "buyList" && scanMeta ? (
@@ -698,8 +698,8 @@ export function Dashboard() {
             <CardHeader>
               <CardTitle className="text-base">Suggested buys</CardTitle>
               <CardDescription>
-                No saved scan yet. Click <strong className="text-white/70">Scan US buys</strong> to scan
-                all U.S. listed stocks. Results are saved in this browser until you scan again.
+                No saved scan yet. Click <strong className="text-white/70">Scan full US</strong> to scan
+                all U.S. listed common stocks. Results are saved until you scan again.
               </CardDescription>
             </CardHeader>
           </Card>
