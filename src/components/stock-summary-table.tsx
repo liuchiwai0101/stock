@@ -43,6 +43,7 @@ const RANK_COL = "w-8 min-w-8 max-w-8";
 const STOCK_COL_WATCH = "w-[11rem] min-w-[11rem] max-w-[11rem] sm:w-[14rem] sm:min-w-[14rem] sm:max-w-[14rem]";
 const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min-w-[12rem] sm:max-w-[12rem]";
 /* Keep below sticky desk chrome (z-20) so mobile scroll doesn’t feel locked. */
+/* Deploy nudge after PR #13. */
 const STICKY_RANK = "sticky left-0 z-[5]";
 const STICKY_STOCK = "sticky left-8 z-[5]";
 const PRICE_COL = "whitespace-nowrap";
