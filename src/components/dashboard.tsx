@@ -30,6 +30,7 @@ import { canonicalizeTicker } from "@/lib/ticker";
 import { UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
+/** Deploy nudge after PR #19 so GitHub Pages rebuilds Scan full US. */
 const HORIZONS: { value: Horizon; label: string }[] = [
   { value: 5, label: "1 week" },
   { value: 10, label: "2 weeks" },
