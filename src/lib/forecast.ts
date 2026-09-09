@@ -1,4 +1,5 @@
 import { kellyWeight, runBacktest } from "@/lib/backtest";
+import { defaultPolicy, type AdaptivePolicy } from "@/lib/adaptive-policy";
 import { clamp, logReturns, stdev } from "@/lib/math/stats";
 import { fitEnsemble, MODEL_LABELS, MODEL_REGISTRY, type ModelId } from "@/lib/models/registry";
 import type {
@@ -26,18 +27,21 @@ export function addBusinessDays(iso: string, days: number): string {
 function signalFromForecast(
   expectedReturn: number,
   residualVol: number,
-  horizon: number
+  horizon: number,
+  policy: AdaptivePolicy,
 ): { signal: TradeSignal; confidence: number; recommendedWeight: number } {
   const pathVol = residualVol * Math.sqrt(horizon);
   const tstat = pathVol === 0 ? 0 : expectedReturn / pathVol;
-  const hurdle = Math.max(0.008, 0.28 * pathVol);
+  const hurdle = Math.max(0.008, 0.28 * pathVol) * policy.buyHurdleScale;
   let signal: TradeSignal = "HOLD";
   if (expectedReturn > hurdle) signal = "BUY";
   else if (expectedReturn < -hurdle) signal = "SELL";
-  const confidence = clamp(Math.abs(tstat) / 1.6, 0.12, 0.92);
+  const confidence = clamp((Math.abs(tstat) / 1.6) * policy.confidenceScale, 0.12, 0.95);
   const kelly = kellyWeight(expectedReturn, residualVol, horizon);
   const recommendedWeight =
-    signal === "HOLD" ? 0 : clamp(Math.abs(kelly), 0.04, 0.25) * (signal === "SELL" ? -1 : 1);
+    signal === "HOLD"
+      ? 0
+      : clamp(Math.abs(kelly) * policy.sizeScale, 0.03, 0.28) * (signal === "SELL" ? -1 : 1);
   return { signal, confidence, recommendedWeight };
 }
 
@@ -61,7 +65,11 @@ function rationale(
   return `${action} Lead model: ${MODEL_LABELS[dominant]}. Expected ${dir} close. ${backtestSummary}`;
 }
 
-export function runForecast(series: QuoteSeries, horizon: Horizon): CompanyForecast {
+export function runForecast(
+  series: QuoteSeries,
+  horizon: Horizon,
+  policy: AdaptivePolicy = defaultPolicy(),
+): CompanyForecast {
   const bars = series.bars.slice(-500);
   const closes = bars.map((b) => b.close);
   const dates = bars.map((b) => b.date);
@@ -69,7 +77,7 @@ export function runForecast(series: QuoteSeries, horizon: Horizon): CompanyForec
     throw new Error(`Not enough history for ${series.symbol} (need 120+ days)`);
   }
 
-  const { weights, logPath, metrics: wfMetrics, models } = fitEnsemble(closes, horizon);
+  const { weights, logPath, metrics: wfMetrics, models } = fitEnsemble(closes, horizon, policy);
   const backtest = runBacktest(closes, dates, horizon);
 
   const last = Math.round(closes[closes.length - 1] * 100) / 100;
@@ -96,7 +104,8 @@ export function runForecast(series: QuoteSeries, horizon: Horizon): CompanyForec
   const { signal: rawSignal, confidence, recommendedWeight } = signalFromForecast(
     expectedReturn,
     residualVol,
-    horizon
+    horizon,
+    policy,
   );
 
   const liveReady = backtest.passed;

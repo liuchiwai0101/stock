@@ -1,0 +1,10 @@
+services:
+  signal-desk:
+    image: ghcr.io/liuchiwai0101/stock:run
+    build: .
+    ports:
+      - "43123:43123"
+    environment:
+      NODE_ENV: production
+      PORT: "43123"
+      HOSTNAME: 0.0.0.0

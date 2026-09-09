@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { loadQuote } from "../src/lib/market";
-import { mapPool } from "../src/lib/pool";
+import { mapPool } from "../src/lib/scan-pool";
 import { DEFAULT_SYMBOLS, universeSymbols } from "../src/lib/universe";
 
 const symbols = [...new Set([...DEFAULT_SYMBOLS, ...universeSymbols()])];

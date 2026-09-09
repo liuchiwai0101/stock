@@ -1,8 +1,7 @@
 import type { NextConfig } from "next";
 
-const pagesBasePath =
-  process.env.PAGES_BASE_PATH || (process.env.GITHUB_PAGES === "true" ? "/stock" : "");
 const isGithubPages = process.env.GITHUB_PAGES === "true" || Boolean(process.env.PAGES_BASE_PATH);
+const pagesBasePath = process.env.PAGES_BASE_PATH || (isGithubPages ? "/stock" : "");
 
 const nextConfig: NextConfig = {
   ...(isGithubPages
@@ -12,7 +11,12 @@ const nextConfig: NextConfig = {
         trailingSlash: true,
         images: { unoptimized: true },
       }
-    : {}),
+    : {
+        output: "standalone" as const,
+        outputFileTracingExcludes: {
+          "*": ["./.data/**"],
+        },
+      }),
   // Allow Cursor Cloud / agent preview proxies and phone tunnels to hit the Next.js dev server.
   allowedDevOrigins: [
     "*",

@@ -19,6 +19,9 @@ const ROOT_ENTRIES = [
   "_next",
   "data",
   "trades",
+  "monitor",
+  "learn",
+  "pnl",
   "_not-found",
   "404",
 ];
@@ -62,7 +65,6 @@ try {
   });
   writeFileSync("out/.nojekyll", "");
   publishDir("out", "docs");
-  // GitHub Pages is set to main / (root). Copy the site there so it is public.
   publishToRepoRoot("out");
 } finally {
   if (existsSync(stash)) {
