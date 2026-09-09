@@ -1,6 +1,6 @@
 /**
  * Default watchlist for account Vin — US-listed names from the Futu 持倉 screenshot.
- * HK/A-share tickers are omitted (desk forecasts U.S. symbols).
+ * HK/A-share tickers are omitted — desk forecasts U.S. symbols.
  */
 export const VIN_WATCHLIST_SYMBOLS = [
   "TSLA",
