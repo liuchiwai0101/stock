@@ -5,7 +5,6 @@ import {
   getStorageScope,
   loginAccount,
   logoutAccount,
-  registerAccount,
   type AccountUser,
 } from "@/lib/account";
 import { STATIC_DESK } from "@/lib/static-mode";
@@ -37,7 +36,7 @@ function setUser(user: AccountUser | null) {
   emit();
 }
 
-async function syncRemote(action: "register" | "login" | "logout", body?: Record<string, string>) {
+async function syncRemote(action: "login" | "logout", body?: Record<string, string>) {
   if (STATIC_DESK) return null;
   try {
     const res = await fetch("/api/account", {
@@ -50,14 +49,6 @@ async function syncRemote(action: "register" | "login" | "logout", body?: Record
   } catch {
     return null;
   }
-}
-
-export async function registerAndSync(username: string, password: string): Promise<AccountUser> {
-  const user = await registerAccount(username, password);
-  setUser(user);
-  await syncRemote("register", { username, password });
-  await pushUserData();
-  return user;
 }
 
 export async function loginAndSync(username: string, password: string): Promise<AccountUser> {

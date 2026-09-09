@@ -82,20 +82,20 @@ export function TradeRecordsPage() {
       <AppNav
         subtitle={`${stats.symbols} stock${stats.symbols === 1 ? "" : "s"} · ${stats.total} fills`}
         right={
-          <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Equity</div>
-              <div className="font-mono text-sm">{formatMoney(book.equity)}</div>
+          <>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Equity</span>
+              <span className="font-mono text-xs sm:text-sm">{formatMoney(book.equity)}</span>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Cash</div>
-              <div className="font-mono text-sm">{formatMoney(book.portfolio.cash)}</div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Cash</span>
+              <span className="font-mono text-xs sm:text-sm">{formatMoney(book.portfolio.cash)}</span>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">P&L</div>
-              <div className={cn("font-mono text-sm", clsxSign(pnl))}>{formatMoney(pnl)}</div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">P&L</span>
+              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(pnl))}>{formatMoney(pnl)}</span>
             </div>
-          </div>
+          </>
         }
       />
 

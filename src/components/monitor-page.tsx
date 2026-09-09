@@ -216,24 +216,24 @@ export function MonitorPage() {
       <AppNav
         subtitle={marketOpen ? "Live · model suggestions · paper trades" : "Market closed · delayed quotes"}
         right={
-          <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Equity</div>
-              <div className="font-mono text-sm">{formatMoney(book.equity)}</div>
+          <>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Equity</span>
+              <span className="font-mono text-xs sm:text-sm">{formatMoney(book.equity)}</span>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Market</div>
-              <div className={cn("font-mono text-sm", marketOpen ? "text-emerald-300" : "text-white/55")}>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Market</span>
+              <span className={cn("font-mono text-xs sm:text-sm", marketOpen ? "text-emerald-300" : "text-white/55")}>
                 {marketOpen ? "Open" : "Closed"}
-              </div>
+              </span>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">P&L</div>
-              <div className={cn("font-mono text-sm", clsxSign(bookPnl.totalPnL))}>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">P&L</span>
+              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(bookPnl.totalPnL))}>
                 {formatMoney(bookPnl.totalPnL)}
-              </div>
+              </span>
             </div>
-          </div>
+          </>
         }
       />
 
