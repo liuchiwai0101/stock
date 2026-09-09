@@ -38,7 +38,7 @@ function cleanBars(bars: Bar[]): Bar[] {
 }
 
 async function fetchYahoo(symbol: string, range: string): Promise<QuoteSeries> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}&includePrePost=false&events=div%7Csplit`;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}&includePrePost=false&events=div%7Csplit&tsrc=finance`;
   const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
   if (!res.ok) throw new Error(`Yahoo ${res.status}`);
   const json = (await res.json()) as {
@@ -76,6 +76,9 @@ async function fetchYahoo(symbol: string, range: string): Promise<QuoteSeries> {
 }
 
 async function fetchStooq(symbol: string): Promise<QuoteSeries> {
+  if (/\.(HK|SS|SZ|TO|L|T|AX|NS|BO|KQ|KS)$/i.test(symbol)) {
+    throw new Error("Stooq US only");
+  }
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(symbol.toLowerCase())}.us&i=d`;
   const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
@@ -198,7 +201,7 @@ async function loadStaticSnapshot(ticker: string): Promise<QuoteSeries | null> {
   try {
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     const res = await fetch(`${base}/data/quotes/${encodeURIComponent(ticker)}.json`, {
-      cache: "force-cache",
+      cache: "no-store",
     });
     if (!res.ok) return null;
     const json = (await res.json()) as QuoteSeries;
@@ -225,8 +228,6 @@ export async function loadQuote(
   if (!/^[A-Z0-9.]{1,12}$/.test(ticker)) {
     throw new Error("Invalid ticker");
   }
-  const snapshot = await loadStaticSnapshot(ticker);
-  if (snapshot) return snapshot;
   const yahooSymbol = toYahooSymbol(ticker);
   try {
     const series = await fetchYahoo(yahooSymbol, range);
@@ -235,6 +236,8 @@ export async function loadQuote(
     try {
       return await fetchStooq(ticker);
     } catch {
+      const snapshot = await loadStaticSnapshot(ticker);
+      if (snapshot) return snapshot;
       if (opts?.allowSimulated === false) {
         throw new Error("No market data");
       }

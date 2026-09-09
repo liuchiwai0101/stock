@@ -94,15 +94,28 @@ export async function fetchMarks(symbols: string[]): Promise<{
   quotes: QuoteMark[];
   errors: { symbol: string; message: string }[];
 }> {
-  if (STATIC_DESK) return loadMarks(symbols);
-  const res = await fetch(`/api/quotes?symbols=${encodeURIComponent(symbols.join(","))}`, {
-    cache: "no-store",
-  });
-  const json = (await res.json()) as {
-    quotes?: QuoteMark[];
-    error?: string;
-    errors?: { symbol: string; message: string }[];
-  };
-  if (!res.ok) throw new Error(json.error ?? "Price refresh failed");
-  return { quotes: json.quotes ?? [], errors: json.errors ?? [] };
+  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))];
+  const quotes: QuoteMark[] = [];
+  const errors: { symbol: string; message: string }[] = [];
+  for (let i = 0; i < unique.length; i += 80) {
+    const chunk = unique.slice(i, i + 80);
+    if (STATIC_DESK) {
+      const part = await loadMarks(chunk);
+      quotes.push(...part.quotes);
+      errors.push(...part.errors);
+      continue;
+    }
+    const res = await fetch(`/api/quotes?symbols=${encodeURIComponent(chunk.join(","))}`, {
+      cache: "no-store",
+    });
+    const json = (await res.json()) as {
+      quotes?: QuoteMark[];
+      error?: string;
+      errors?: { symbol: string; message: string }[];
+    };
+    if (!res.ok) throw new Error(json.error ?? "Price refresh failed");
+    quotes.push(...(json.quotes ?? []));
+    errors.push(...(json.errors ?? []));
+  }
+  return { quotes, errors };
 }
