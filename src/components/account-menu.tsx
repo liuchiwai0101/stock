@@ -9,16 +9,14 @@ import {
   getServerAccountSnapshot,
   loginAndSync,
   logoutAndSync,
-  registerAndSync,
   subscribeAccount,
 } from "@/lib/account-store";
-import { cn } from "@/lib/utils";
+import { listHardcodedUsernames } from "@/lib/hardcoded-accounts";
 
 export function AccountMenu() {
   const user = useSyncExternalStore(subscribeAccount, getAccountSnapshot, getServerAccountSnapshot);
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] = useState(listHardcodedUsernames()[0] ?? "");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,13 +25,12 @@ export function AccountMenu() {
     setBusy(true);
     setError(null);
     try {
-      if (mode === "register") await registerAndSync(username, password);
-      else await loginAndSync(username, password);
+      await loginAndSync(username, password);
       setOpen(false);
       setPassword("");
       window.location.reload();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Account failed");
+      setError(err instanceof Error ? err.message : "Sign in failed");
     } finally {
       setBusy(false);
     }
@@ -45,7 +42,7 @@ export function AccountMenu() {
   }
 
   return (
-    <div className="relative">
+    <div className="relative shrink-0">
       <Button
         size="sm"
         variant="outline"
@@ -72,42 +69,25 @@ export function AccountMenu() {
             </div>
           ) : (
             <div className="space-y-2.5">
-              <div className="flex gap-1 rounded-md border border-white/10 bg-white/3 p-0.5">
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded px-2 py-1 text-xs",
-                    mode === "login" ? "bg-sky-400/15 text-sky-100" : "text-white/55",
-                  )}
-                  onClick={() => setMode("login")}
-                >
-                  Sign in
-                </button>
-                <button
-                  type="button"
-                  className={cn(
-                    "flex-1 rounded px-2 py-1 text-xs",
-                    mode === "register" ? "bg-sky-400/15 text-sky-100" : "text-white/55",
-                  )}
-                  onClick={() => setMode("register")}
-                >
-                  Create
-                </button>
-              </div>
-              <Input
+              <p className="text-[11px] text-white/50">Sign in with a desk account</p>
+              <select
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username"
-                className="h-9 bg-white/3"
-                autoComplete="username"
-              />
+                className="h-9 w-full rounded-md border border-white/10 bg-white/3 px-2 text-sm text-white"
+              >
+                {listHardcodedUsernames().map((name) => (
+                  <option key={name} value={name} className="bg-[#121820]">
+                    {name}
+                  </option>
+                ))}
+              </select>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 className="h-9 bg-white/3"
-                autoComplete={mode === "register" ? "new-password" : "current-password"}
+                autoComplete="current-password"
                 onKeyDown={(e) => {
                   if (e.key === "Enter") void submit();
                 }}
@@ -115,11 +95,10 @@ export function AccountMenu() {
               {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
               <Button size="sm" className="w-full" disabled={busy} onClick={() => void submit()}>
                 <LogIn className="size-3.5" />
-                {mode === "register" ? "Create account" : "Sign in"}
+                Sign in
               </Button>
               <p className="text-[10px] leading-relaxed text-white/40">
-                Saves your watchlist and full US scan on this device. With the Node/Docker server,
-                scans also sync by account (guests by browser session / IP).
+                Accounts are assigned by the desk. Default password is username + 123 (e.g. Vin → Vin123).
               </p>
             </div>
           )}

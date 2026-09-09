@@ -91,22 +91,24 @@ export function PnlPage() {
       <AppNav
         subtitle="Profit & loss review by period"
         right={
-          <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Equity</div>
-              <div className="font-mono text-sm">{formatMoney(pnl.equity)}</div>
+          <>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Equity</span>
+              <span className="font-mono text-xs sm:text-sm">{formatMoney(pnl.equity)}</span>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Total P&L</div>
-              <div className={cn("font-mono text-sm", clsxSign(pnl.totalPnL))}>{formatMoney(pnl.totalPnL)}</div>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Total P&L</span>
+              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(pnl.totalPnL))}>
+                {formatMoney(pnl.totalPnL)}
+              </span>
             </div>
-            <div>
-              <div className="text-[10px] tracking-wide text-white/40 uppercase">Return</div>
-              <div className={cn("font-mono text-sm", clsxSign(pnl.totalPnLPct))}>
+            <div className="flex items-baseline gap-2 whitespace-nowrap">
+              <span className="text-[10px] tracking-wide text-white/40 uppercase">Return</span>
+              <span className={cn("font-mono text-xs sm:text-sm", clsxSign(pnl.totalPnLPct))}>
                 {formatPct(pnl.totalPnLPct)}
-              </div>
+              </span>
             </div>
-          </div>
+          </>
         }
       />
 

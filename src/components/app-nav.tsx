@@ -26,8 +26,8 @@ export function AppNav({
 
   return (
     <header className="sticky top-0 z-30 shrink-0 border-b border-white/8 bg-[#0b1016]/92 backdrop-blur-xl">
-      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-2.5 px-4 py-2.5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-2.5">
+      <div className="mx-auto flex w-full max-w-[1100px] items-start justify-between gap-3 px-4 py-2.5 sm:px-6">
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/25">
               <Activity className="size-3.5" />
@@ -57,13 +57,14 @@ export function AppNav({
               );
             })}
           </nav>
+        </div>
+
+        <div className="flex shrink-0 items-start gap-3">
+          {right ? (
+            <div className="flex flex-col items-end gap-0.5 text-right leading-tight">{right}</div>
+          ) : null}
           <AccountMenu />
         </div>
-        {right ? (
-          <div className="flex w-full items-center justify-between gap-3 overflow-x-auto text-right sm:w-auto sm:justify-end sm:gap-6">
-            {right}
-          </div>
-        ) : null}
       </div>
     </header>
   );

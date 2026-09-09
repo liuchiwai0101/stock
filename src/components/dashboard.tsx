@@ -407,11 +407,11 @@ export function Dashboard() {
             : "Paper forecasts · selection saved in this browser"
         }
         right={
-          <div className="grid grid-cols-3 gap-2 text-right sm:flex sm:items-center sm:gap-6">
+          <>
             <Stat label="Equity" value={formatMoney(book.equity)} />
             <Stat label="Cash" value={formatMoney(book.portfolio.cash)} />
             <Stat label="P&L" value={formatMoney(pnl)} hint={formatPct(pnlPct)} tone={pnl} />
-          </div>
+          </>
         }
       />
 
@@ -721,12 +721,12 @@ function Stat({
   tone?: number;
 }) {
   return (
-    <div>
-      <div className="text-[10px] tracking-wide text-white/40 uppercase">{label}</div>
-      <div className={cn("font-mono text-sm sm:text-base", tone != null && clsxSign(tone))}>
+    <div className="flex items-baseline gap-2 whitespace-nowrap">
+      <span className="text-[10px] tracking-wide text-white/40 uppercase">{label}</span>
+      <span className={cn("font-mono text-xs sm:text-sm", tone != null && clsxSign(tone))}>
         {value}
-        {hint ? <span className="ml-1 text-[11px] text-white/40">{hint}</span> : null}
-      </div>
+        {hint ? <span className="ml-1 text-[10px] text-white/40">{hint}</span> : null}
+      </span>
     </div>
   );
 }

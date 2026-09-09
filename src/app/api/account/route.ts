@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { loginServerAccount, registerServerAccount } from "@/lib/account-server";
+import { loginServerAccount } from "@/lib/account-server";
 
 export const dynamic = "force-dynamic";
 
@@ -29,19 +29,11 @@ export async function POST(req: NextRequest) {
     return res;
   }
 
-  try {
-    if (body.action === "register") {
-      const account = await registerServerAccount(body.username ?? "", body.password ?? "");
-      const user = { id: account.id, username: account.username, createdAt: account.createdAt };
-      const res = NextResponse.json({ user });
-      res.cookies.set(COOKIE, encodeURIComponent(JSON.stringify(user)), {
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-        sameSite: "lax",
-      });
-      return res;
-    }
+  if (body.action === "register") {
+    return NextResponse.json({ error: "Account creation is disabled" }, { status: 403 });
+  }
 
+  try {
     if (body.action === "login") {
       const account = await loginServerAccount(body.username ?? "", body.password ?? "");
       const user = { id: account.id, username: account.username, createdAt: account.createdAt };
