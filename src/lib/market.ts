@@ -1,3 +1,4 @@
+import { canonicalizeTicker } from "@/lib/ticker";
 import type { Bar, DataSource } from "@/lib/types";
 import { companyName } from "@/lib/universe";
 
@@ -37,42 +38,88 @@ function cleanBars(bars: Bar[]): Bar[] {
   return out;
 }
 
+const MIN_QUOTE_BARS = 20;
+const MIN_MARK_BARS = 2;
+
+function minBarsForRange(range: string): number {
+  if (range === "5d" || range === "1d") return MIN_MARK_BARS;
+  return MIN_QUOTE_BARS;
+}
+
+const YAHOO_CHART_HOSTS = [
+  "https://query1.finance.yahoo.com",
+  "https://query2.finance.yahoo.com",
+] as const;
+
 async function fetchYahoo(symbol: string, range: string): Promise<QuoteSeries> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}&includePrePost=false&events=div%7Csplit&tsrc=finance`;
-  const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
-  if (!res.ok) throw new Error(`Yahoo ${res.status}`);
-  const json = (await res.json()) as {
-    chart?: {
-      result?: {
-        meta?: { symbol?: string; shortName?: string; longName?: string; currency?: string };
-        timestamp?: number[];
-        indicators?: { quote?: { close?: (number | null)[]; open?: (number | null)[]; high?: (number | null)[]; low?: (number | null)[]; volume?: (number | null)[] }[] };
-      }[];
-      error?: { description?: string } | null;
-    };
-  };
-  const result = json.chart?.result?.[0];
-  if (!result?.timestamp?.length) {
-    throw new Error(json.chart?.error?.description ?? "Yahoo returned no series");
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const host = YAHOO_CHART_HOSTS[attempt % YAHOO_CHART_HOSTS.length];
+    const url = `${host}/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=${range}&includePrePost=false&events=div%7Csplit&tsrc=finance`;
+    try {
+      const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
+      if (!res.ok) throw new Error(`Yahoo ${res.status}`);
+      const json = (await res.json()) as {
+        chart?: {
+          result?: {
+            meta?: {
+              symbol?: string;
+              shortName?: string;
+              longName?: string;
+              currency?: string;
+              exchangeName?: string;
+              fullExchangeName?: string;
+            };
+            timestamp?: number[];
+            indicators?: {
+              quote?: {
+                close?: (number | null)[];
+                open?: (number | null)[];
+                high?: (number | null)[];
+                low?: (number | null)[];
+                volume?: (number | null)[];
+              }[];
+            };
+          }[];
+          error?: { description?: string } | null;
+        };
+      };
+      const result = json.chart?.result?.[0];
+      if (!result?.timestamp?.length) {
+        throw new Error(json.chart?.error?.description ?? "Yahoo returned no series");
+      }
+      const exchange = (result.meta?.exchangeName ?? result.meta?.fullExchangeName ?? "").toUpperCase();
+      if (exchange === "YHD") {
+        throw new Error(`Yahoo dummy listing for ${symbol}`);
+      }
+      const quote = result.indicators?.quote?.[0];
+      const bars: Bar[] = result.timestamp.map((ts, i) => ({
+        date: isoFromUnix(ts),
+        close: Number(quote?.close?.[i]),
+        open: Number(quote?.open?.[i]),
+        high: Number(quote?.high?.[i]),
+        low: Number(quote?.low?.[i]),
+        volume: Number(quote?.volume?.[i]),
+      }));
+      const cleaned = cleanBars(bars);
+      if (cleaned.length < minBarsForRange(range)) throw new Error("Not enough Yahoo history");
+      return {
+        symbol: (result.meta?.symbol ?? symbol).toUpperCase(),
+        name: result.meta?.shortName ?? result.meta?.longName ?? companyName(symbol),
+        currency: result.meta?.currency ?? "USD",
+        source: "yahoo",
+        bars: cleaned,
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < 3) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      }
+    }
   }
-  const quote = result.indicators?.quote?.[0];
-  const bars: Bar[] = result.timestamp.map((ts, i) => ({
-    date: isoFromUnix(ts),
-    close: Number(quote?.close?.[i]),
-    open: Number(quote?.open?.[i]),
-    high: Number(quote?.high?.[i]),
-    low: Number(quote?.low?.[i]),
-    volume: Number(quote?.volume?.[i]),
-  }));
-  const cleaned = cleanBars(bars);
-  if (cleaned.length < 60) throw new Error("Not enough Yahoo history");
-  return {
-    symbol: (result.meta?.symbol ?? symbol).toUpperCase(),
-    name: result.meta?.shortName ?? result.meta?.longName ?? companyName(symbol),
-    currency: result.meta?.currency ?? "USD",
-    source: "yahoo",
-    bars: cleaned,
-  };
+
+  throw lastError ?? new Error("Yahoo returned no series");
 }
 
 async function fetchStooq(symbol: string): Promise<QuoteSeries> {
@@ -84,7 +131,7 @@ async function fetchStooq(symbol: string): Promise<QuoteSeries> {
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const text = await res.text();
   const lines = text.trim().split("\n");
-  if (lines.length < 62 || !lines[0].toLowerCase().includes("date")) {
+  if (lines.length < 22 || !lines[0].toLowerCase().includes("date")) {
     throw new Error("Stooq returned no series");
   }
   const bars: Bar[] = [];
@@ -101,7 +148,7 @@ async function fetchStooq(symbol: string): Promise<QuoteSeries> {
     });
   }
   const cleaned = cleanBars(bars).slice(-400);
-  if (cleaned.length < 60) throw new Error("Not enough Stooq history");
+  if (cleaned.length < MIN_QUOTE_BARS) throw new Error("Not enough Stooq history");
   return {
     symbol: symbol.toUpperCase(),
     name: companyName(symbol),
@@ -205,18 +252,28 @@ async function loadStaticSnapshot(ticker: string): Promise<QuoteSeries | null> {
     });
     if (!res.ok) return null;
     const json = (await res.json()) as QuoteSeries;
-    if (!Array.isArray(json?.bars) || json.bars.length < 60) return null;
+    if (!isLiveQuoteSeries(json)) return null;
     return { ...json, symbol: ticker };
   } catch {
     return null;
   }
 }
 
+export function isLiveQuoteSeries(series: QuoteSeries | null | undefined): series is QuoteSeries {
+  return Boolean(
+    series &&
+      (series.source === "yahoo" || series.source === "stooq") &&
+      Array.isArray(series.bars) &&
+      series.bars.length >= MIN_QUOTE_BARS,
+  );
+}
+
 function toYahooSymbol(ticker: string): string {
+  const canonical = canonicalizeTicker(ticker);
   // Exchange suffixes must keep the dotted form (1810.HK, 000858.SZ).
-  if (/\.(HK|SS|SZ|TO|L|T|AX|NS|BO|KQ|KS)$/i.test(ticker)) return ticker;
+  if (/\.(HK|SS|SZ|TO|L|T|AX|NS|BO|KQ|KS)$/i.test(canonical)) return canonical;
   // U.S. share-class dots become dashes (BRK.B → BRK-B).
-  return ticker.replace(/\./g, "-");
+  return canonical.replace(/\./g, "-");
 }
 
 export async function loadQuote(
@@ -224,7 +281,7 @@ export async function loadQuote(
   range = "5y",
   opts?: { allowSimulated?: boolean },
 ): Promise<QuoteSeries> {
-  const ticker = symbol.trim().toUpperCase();
+  const ticker = canonicalizeTicker(symbol);
   if (!/^[A-Z0-9.]{1,12}$/.test(ticker)) {
     throw new Error("Invalid ticker");
   }
@@ -239,7 +296,7 @@ export async function loadQuote(
       const snapshot = await loadStaticSnapshot(ticker);
       if (snapshot) return snapshot;
       if (opts?.allowSimulated === false) {
-        throw new Error("No market data");
+        throw new Error(`No live quote for ${ticker}`);
       }
       return simulateSeries(ticker);
     }

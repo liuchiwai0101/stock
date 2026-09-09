@@ -1,22 +1,26 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { loadQuote } from "../src/lib/market";
 import { mapPool } from "../src/lib/scan-pool";
 import { VIN_WATCHLIST_SYMBOLS } from "../src/lib/vin-watchlist";
 import { DEFAULT_SYMBOLS, universeSymbols } from "../src/lib/universe";
 
-const symbols = [...new Set([...DEFAULT_SYMBOLS, ...universeSymbols(), ...VIN_WATCHLIST_SYMBOLS])];
+const symbols = [...new Set([...VIN_WATCHLIST_SYMBOLS, ...DEFAULT_SYMBOLS, ...universeSymbols()])];
 
 async function main() {
+  await rm("public/data/quotes", { recursive: true, force: true });
   await mkdir("public/data/quotes", { recursive: true });
   const errors: { symbol: string; message: string }[] = [];
   const ok: string[] = [];
 
-  await mapPool(symbols, 6, async (symbol) => {
+  await mapPool(symbols, 4, async (symbol) => {
     try {
-      const series = await loadQuote(symbol);
+      const series = await loadQuote(symbol, "5y", { allowSimulated: false });
+      if (series.source === "simulated") {
+        throw new Error("Skipped simulated fallback so Pages cannot serve fake prices.");
+      }
       await writeFile(`public/data/quotes/${symbol}.json`, JSON.stringify(series));
       ok.push(symbol);
-      process.stdout.write(`  ${symbol} ${series.source} ${series.bars.length} bars\n`);
+      process.stdout.write(`  ${symbol} ${series.source} ${series.bars.length} bars last=${series.bars.at(-1)?.close}\n`);
     } catch (err) {
       const message = err instanceof Error ? err.message : "prefetch failed";
       errors.push({ symbol, message });

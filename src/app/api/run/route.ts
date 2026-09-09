@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const quotes = await Promise.all(
     symbols.map(async (symbol) => {
       try {
-        const series = await loadQuote(symbol);
+        const series = await loadQuote(symbol, "5y", { allowSimulated: false });
         return runForecast(series, horizon, policy);
       } catch (err) {
         errors.push({

@@ -3,6 +3,7 @@ import { loadQuote, searchTickers, type SearchHit } from "@/lib/market";
 import { loadPolicy } from "@/lib/policy-store";
 import { mapPool } from "@/lib/scan-pool";
 import { defaultPolicy } from "@/lib/adaptive-policy";
+import { canonicalizeTicker } from "@/lib/ticker";
 import type { CompanyForecast, DataSource, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE } from "@/lib/universe";
 import { usEquitySymbols } from "@/lib/us-universe";
@@ -36,7 +37,7 @@ export function parseHorizon(raw: number): Horizon {
 }
 
 export function parseSymbols(symbolsParam: string, limit = 6): string[] {
-  return [...new Set(symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(
+  return [...new Set(symbolsParam.split(",").map((s) => canonicalizeTicker(s)).filter(Boolean))].slice(
     0,
     limit,
   );
@@ -54,7 +55,7 @@ function policy() {
 }
 
 export async function runDesk(symbols: string[], horizon: Horizon): Promise<RunResponse> {
-  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 20);
+  const unique = [...new Set(symbols.map((s) => canonicalizeTicker(s)).filter(Boolean))].slice(0, 20);
   if (unique.length === 0) {
     return {
       horizon,
@@ -69,7 +70,7 @@ export async function runDesk(symbols: string[], horizon: Horizon): Promise<RunR
   const quotes = await Promise.all(
     unique.map(async (symbol) => {
       try {
-        const series = await loadQuote(symbol);
+        const series = await loadQuote(symbol, "5y", { allowSimulated: false });
         return runForecast(series, horizon, policy());
       } catch (err) {
         errors.push({
@@ -154,11 +155,11 @@ export async function searchDesk(query: string): Promise<SearchHit[]> {
 }
 
 export async function loadMarks(symbols: string[]): Promise<{ quotes: QuoteMark[]; errors: { symbol: string; message: string }[] }> {
-  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 80);
+  const unique = [...new Set(symbols.map((s) => canonicalizeTicker(s)).filter(Boolean))].slice(0, 80);
   const errors: { symbol: string; message: string }[] = [];
   const quotes = await mapPool(unique, 6, async (symbol) => {
     try {
-      const series = await loadQuote(symbol, "5d");
+      const series = await loadQuote(symbol, "5d", { allowSimulated: false });
       const bars = series.bars;
       const lastBar = bars[bars.length - 1];
       const prevBar = bars[bars.length - 2];

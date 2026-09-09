@@ -4,7 +4,8 @@ import { displayStockName } from "./chinese-names";
 describe("displayStockName", () => {
   it("prefers Chinese over English", () => {
     expect(displayStockName("JNJ", "Johnson & Johnson")).toBe("强生");
-    expect(displayStockName("WMT", "Walmart Inc.")).toBe("沃尔玛");
+    expect(displayStockName("100.HK", "wrong etf")).toBe("MINIMAX");
+    expect(displayStockName("0100.HK", "MINIMAX-W")).toBe("MINIMAX");
   });
 
   it("falls back to shortened English", () => {

@@ -17,7 +17,7 @@ export const VIN_WATCHLIST_SYMBOLS = [
   "0981.HK", // 中芯國際 00981
   "0939.HK", // 建設銀行 00939
   "7709.HK", // 南方東英 SK 海力士 07709
-  "100.HK", // MINIMAX-W 00100
+  "0100.HK", // MINIMAX-W 00100
   // A-shares
   "000858.SZ", // 五糧液
   "601611.SS", // 中國核建

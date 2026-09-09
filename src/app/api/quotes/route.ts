@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const errors: { symbol: string; message: string }[] = [];
   const quotes = await mapPool(symbols, CONCURRENCY, async (symbol) => {
     try {
-      const series = await loadQuote(symbol, "5d");
+      const series = await loadQuote(symbol, "5d", { allowSimulated: false });
       const bars = series.bars;
       const lastBar = bars[bars.length - 1];
       const prevBar = bars[bars.length - 2];

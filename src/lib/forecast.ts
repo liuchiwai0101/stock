@@ -73,8 +73,8 @@ export function runForecast(
   const bars = series.bars.slice(-500);
   const closes = bars.map((b) => b.close);
   const dates = bars.map((b) => b.date);
-  if (closes.length < 120) {
-    throw new Error(`Not enough history for ${series.symbol} (need 120+ days)`);
+  if (closes.length < 30) {
+    throw new Error(`Not enough history for ${series.symbol} (need 30+ days)`);
   }
 
   const { weights, logPath, metrics: wfMetrics, models } = fitEnsemble(closes, horizon, policy);

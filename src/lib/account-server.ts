@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { canonicalizeTicker } from "@/lib/ticker";
 import { findHardcodedAccount, verifyHardcodedPassword } from "@/lib/hardcoded-accounts";
 import { vinDefaultSelection } from "@/lib/vin-watchlist";
 
@@ -32,14 +33,14 @@ function mergeVinSelection(existing: unknown): ReturnType<typeof vinDefaultSelec
   const prev = (existing ?? {}) as { symbols?: string[]; active?: string; horizon?: number };
   const symbols = [
     ...new Set([
-      ...(Array.isArray(prev.symbols) ? prev.symbols.map((s) => String(s).toUpperCase()) : []),
+      ...(Array.isArray(prev.symbols) ? prev.symbols.map((s) => canonicalizeTicker(String(s))) : []),
       ...seeded.symbols,
     ]),
   ].slice(0, 20);
   return {
     symbols,
-    active: symbols.includes(String(prev.active ?? "").toUpperCase())
-      ? String(prev.active).toUpperCase()
+    active: symbols.includes(canonicalizeTicker(String(prev.active ?? "")))
+      ? canonicalizeTicker(String(prev.active))
       : seeded.active,
     horizon: 21,
   };
