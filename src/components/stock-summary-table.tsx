@@ -137,7 +137,7 @@ function SortHeader({
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "inline-flex items-center gap-1 uppercase transition hover:text-white/75",
+          "inline-flex max-w-[7.5rem] items-center gap-1 text-left leading-tight transition hover:text-white/75",
           active ? "text-sky-200" : "text-white/40",
         )}
       >
@@ -300,7 +300,7 @@ export function StockSummaryTable({
               <col />
               <col className="w-[7rem]" />
             </colgroup>
-            <thead className="text-[10px] tracking-wide uppercase">
+            <thead className="text-[10px] font-medium tracking-normal">
               <tr className="border-b border-white/8">
                 <th
                   className={cn(
@@ -309,7 +309,7 @@ export function StockSummaryTable({
                     "bg-[#10161d] py-1.5 pr-1 font-medium text-white/40",
                   )}
                 >
-                  #
+                  Rank
                 </th>
                 <SortHeader
                   label="Stock"
@@ -319,30 +319,30 @@ export function StockSummaryTable({
                   className={cn(stockCol, STICKY_STOCK, "bg-[#10161d]")}
                 />
                 <SortHeader
-                  label="Last"
+                  label="Last price"
                   column="last"
                   sort={sort}
                   onSort={toggleSort}
                   className={PRICE_COL}
                 />
                 <SortHeader
-                  label="Target"
+                  label="Target price"
                   column="target"
                   sort={sort}
                   onSort={toggleSort}
                   className={PRICE_COL}
                 />
                 <SortHeader
-                  label="Exp."
+                  label="Expected return"
                   column="exp"
                   sort={sort}
                   onSort={toggleSort}
                   className={NUM_COL}
                 />
-                <SortHeader label="Hit" column="hit" sort={sort} onSort={toggleSort} className={NUM_COL} />
+                <SortHeader label="Hit rate" column="hit" sort={sort} onSort={toggleSort} className={NUM_COL} />
                 {buyList ? (
                   <SortHeader
-                    label="Conf."
+                    label="Confidence"
                     column="conf"
                     sort={sort}
                     onSort={toggleSort}
@@ -351,7 +351,7 @@ export function StockSummaryTable({
                 ) : null}
                 {buyList ? (
                   <SortHeader
-                    label="Sharpe"
+                    label="Sharpe ratio"
                     column="sharpe"
                     sort={sort}
                     onSort={toggleSort}
@@ -365,7 +365,7 @@ export function StockSummaryTable({
                   onSort={toggleSort}
                   className={TAG_COL}
                 />
-                <SortHeader label="BT" column="bt" sort={sort} onSort={toggleSort} className={NUM_COL} />
+                <SortHeader label="Backtest" column="bt" sort={sort} onSort={toggleSort} className={NUM_COL} />
                 <th className={cn(ACTION_COL, "py-1.5 font-medium text-white/40")} />
               </tr>
             </thead>
