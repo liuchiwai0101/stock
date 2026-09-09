@@ -56,8 +56,8 @@ export async function GET(req: NextRequest) {
     }
   });
 
-  const buys = scanned
-    .filter((q): q is CompanyForecast => q !== null)
+  const forecasted = scanned.filter((q): q is CompanyForecast => q !== null);
+  const buys = forecasted
     .filter((q) => q.liveReady && q.signal === "BUY")
     .sort((a, b) => {
       const hit = b.metrics.hitRate - a.metrics.hitRate;
@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
     limit: number;
     processed: number;
     done: boolean;
+    reviewed: string[];
   } = {
     mode: "buy-scan",
     horizon,
@@ -83,13 +84,14 @@ export async function GET(req: NextRequest) {
     quotes: buys,
     errors,
     scanned: batch.length,
-    passed: scanned.filter((q) => q?.liveReady).length,
+    passed: forecasted.filter((q) => q.liveReady).length,
     buyCount: buys.length,
     total: symbols.length,
     offset,
     limit,
     processed,
     done,
+    reviewed: forecasted.map((q) => q.symbol),
   };
 
   return NextResponse.json(body);

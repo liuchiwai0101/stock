@@ -3,6 +3,7 @@ import { loadQuote, searchTickers, type SearchHit } from "@/lib/market";
 import { loadPolicy } from "@/lib/policy-store";
 import { mapPool } from "@/lib/scan-pool";
 import { defaultPolicy } from "@/lib/adaptive-policy";
+import { STATIC_DESK } from "@/lib/static-mode";
 import { canonicalizeTicker } from "@/lib/ticker";
 import type { CompanyForecast, DataSource, Horizon, RunResponse } from "@/lib/types";
 import { UNIVERSE } from "@/lib/universe";
@@ -21,6 +22,8 @@ export type ScanBatchResponse = RunResponse & {
   limit: number;
   processed: number;
   done: boolean;
+  /** Symbols in this batch that produced a forecast (BUY or not). */
+  reviewed?: string[];
 };
 
 export type QuoteMark = {
@@ -96,6 +99,19 @@ export async function scanCount(): Promise<number> {
   return symbols.length;
 }
 
+/** Overlay a scan batch onto the running BUY map. Drop names this batch re-forecasted that are no longer BUY. */
+export function applyScanBatchBuys(
+  buyMap: Map<string, CompanyForecast>,
+  quotes: CompanyForecast[],
+  reviewed: string[] = [],
+): void {
+  const batchBuys = new Set(quotes.map((q) => q.symbol));
+  for (const symbol of reviewed) {
+    if (!batchBuys.has(symbol)) buyMap.delete(symbol);
+  }
+  for (const quote of quotes) buyMap.set(quote.symbol, quote);
+}
+
 export async function scanBuyBatch(
   horizon: Horizon,
   offset = 0,
@@ -105,10 +121,13 @@ export async function scanBuyBatch(
   const batch = symbols.slice(offset, offset + limit);
   const processed = offset + batch.length;
   const errors: RunResponse["errors"] = [];
-  const concurrency = typeof window === "undefined" ? 10 : 4;
+  const concurrency = typeof window === "undefined" ? 10 : 8;
   const scanned = await mapPool(batch, concurrency, async (symbol) => {
     try {
-      const series = await loadQuote(symbol, "5y", { allowSimulated: false });
+      const series = await loadQuote(symbol, "5y", {
+        allowSimulated: false,
+        snapshotOnly: STATIC_DESK,
+      });
       return slimQuote(runForecast(series, horizon, policy()));
     } catch (err) {
       errors.push({
@@ -119,8 +138,8 @@ export async function scanBuyBatch(
     }
   });
 
-  const buys = scanned
-    .filter((q): q is CompanyForecast => q !== null)
+  const forecasted = scanned.filter((q): q is CompanyForecast => q !== null);
+  const buys = forecasted
     .filter((q) => q.liveReady && q.signal === "BUY")
     .sort((a, b) => {
       const hit = b.metrics.hitRate - a.metrics.hitRate;
@@ -136,13 +155,14 @@ export async function scanBuyBatch(
     quotes: buys,
     errors,
     scanned: batch.length,
-    passed: scanned.filter((q) => q?.liveReady).length,
+    passed: forecasted.filter((q) => q.liveReady).length,
     buyCount: buys.length,
     total: symbols.length,
     offset,
     limit,
     processed,
     done: processed >= symbols.length,
+    reviewed: forecasted.map((q) => q.symbol),
   };
 }
 

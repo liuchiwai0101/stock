@@ -63,7 +63,7 @@ async function fetchYahoo(symbol: string, range: string): Promise<QuoteSeries> {
       const res = await fetch(url, {
         headers: FETCH_HEADERS,
         cache: "no-store",
-        signal: AbortSignal.timeout(inBrowser ? 6000 : 20000),
+        signal: AbortSignal.timeout(inBrowser ? 800 : 20000),
       });
       if (!res.ok) throw new Error(`Yahoo ${res.status}`);
       const json = (await res.json()) as {
@@ -136,7 +136,7 @@ async function fetchStooq(symbol: string): Promise<QuoteSeries> {
   const res = await fetch(url, {
     headers: FETCH_HEADERS,
     cache: "no-store",
-    signal: AbortSignal.timeout(typeof window === "undefined" ? 20000 : 6000),
+    signal: AbortSignal.timeout(typeof window === "undefined" ? 20000 : 800),
   });
   if (!res.ok) throw new Error(`Stooq ${res.status}`);
   const text = await res.text();
@@ -253,9 +253,32 @@ function simulateSeries(symbol: string): QuoteSeries {
   };
 }
 
+let snapshotIndex: Set<string> | null | undefined;
+
+async function knownSnapshotSymbols(): Promise<Set<string> | null> {
+  if (typeof window === "undefined") return null;
+  if (snapshotIndex !== undefined) return snapshotIndex;
+  try {
+    const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+    const res = await fetch(`${base}/data/manifest.json`, { cache: "force-cache" });
+    if (!res.ok) {
+      snapshotIndex = null;
+      return null;
+    }
+    const json = (await res.json()) as { symbols?: string[] };
+    snapshotIndex = new Set((json.symbols ?? []).map((s) => String(s).toUpperCase()));
+    return snapshotIndex;
+  } catch {
+    snapshotIndex = null;
+    return null;
+  }
+}
+
 async function loadStaticSnapshot(ticker: string): Promise<QuoteSeries | null> {
   if (typeof window === "undefined") return null;
   try {
+    const known = await knownSnapshotSymbols();
+    if (known && !known.has(ticker)) return null;
     const base = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
     const res = await fetch(`${base}/data/quotes/${encodeURIComponent(ticker)}.json`, {
       cache: "no-store",
@@ -289,27 +312,41 @@ function toYahooSymbol(ticker: string): string {
 export async function loadQuote(
   symbol: string,
   range = "5y",
-  opts?: { allowSimulated?: boolean },
+  opts?: { allowSimulated?: boolean; snapshotOnly?: boolean },
 ): Promise<QuoteSeries> {
   const ticker = canonicalizeTicker(symbol);
   if (!/^[A-Z0-9.]{1,12}$/.test(ticker)) {
     throw new Error("Invalid ticker");
+  }
+  const inBrowser = typeof window !== "undefined";
+  if (inBrowser) {
+    const snapshot = await loadStaticSnapshot(ticker);
+    if (snapshot) return snapshot;
+    if (opts?.snapshotOnly) {
+      if (opts?.allowSimulated === false) {
+        throw new Error(`No snapshot for ${ticker}`);
+      }
+      return simulateSeries(ticker);
+    }
   }
   const yahooSymbol = toYahooSymbol(ticker);
   try {
     const series = await fetchYahoo(yahooSymbol, range);
     return { ...series, symbol: ticker };
   } catch {
-    try {
-      return await fetchStooq(ticker);
-    } catch {
-      const snapshot = await loadStaticSnapshot(ticker);
-      if (snapshot) return snapshot;
-      if (opts?.allowSimulated === false) {
-        throw new Error(`No live quote for ${ticker}`);
+    if (!inBrowser) {
+      try {
+        return await fetchStooq(ticker);
+      } catch {
+        // Fall through.
       }
-      return simulateSeries(ticker);
     }
+    const snapshot = await loadStaticSnapshot(ticker);
+    if (snapshot) return snapshot;
+    if (opts?.allowSimulated === false) {
+      throw new Error(`No live quote for ${ticker}`);
+    }
+    return simulateSeries(ticker);
   }
 }
 
