@@ -1,3 +1,4 @@
+import { canonicalizeTicker } from "@/lib/ticker";
 import type { Horizon } from "@/lib/types";
 import { DEFAULT_SYMBOLS } from "@/lib/universe";
 import { currentUser, scopedStorageKey } from "@/lib/account";
@@ -34,7 +35,7 @@ function normalizeSymbols(raw: unknown): string[] {
   return [
     ...new Set(
       raw
-        .map((s) => String(s).trim().toUpperCase())
+        .map((s) => canonicalizeTicker(String(s)))
         .filter(Boolean)
         .slice(0, MAX_WATCHLIST_SYMBOLS),
     ),
@@ -50,10 +51,8 @@ export function loadSelection(): SavedSelection {
     const parsed = JSON.parse(raw) as Partial<SavedSelection>;
     const unique = normalizeSymbols(parsed.symbols);
     const list = unique.length ? unique : defaultSelection().symbols;
-    const active =
-      typeof parsed.active === "string" && list.includes(parsed.active.toUpperCase())
-        ? parsed.active.toUpperCase()
-        : list[0];
+    const activeRaw = typeof parsed.active === "string" ? canonicalizeTicker(parsed.active) : "";
+    const active = list.includes(activeRaw) ? activeRaw : list[0];
     const horizon = HORIZONS.includes(parsed.horizon as Horizon)
       ? (parsed.horizon as Horizon)
       : 21;
@@ -79,7 +78,7 @@ export function addSymbolsToWatchlist(symbols: string[]): SavedSelection {
   const merged = [
     ...new Set([
       ...current.symbols,
-      ...symbols.map((s) => s.trim().toUpperCase()).filter(Boolean),
+      ...symbols.map((s) => canonicalizeTicker(s)).filter(Boolean),
     ]),
   ].slice(0, MAX_WATCHLIST_SYMBOLS);
   const next: SavedSelection = {

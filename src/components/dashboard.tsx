@@ -24,6 +24,7 @@ import { usePriceMarks } from "@/hooks/use-price-marks";
 import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
+import { canonicalizeTicker } from "@/lib/ticker";
 import { UNIVERSE } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
@@ -331,7 +332,7 @@ export function Dashboard() {
   }, []);
 
   function addSymbol(symbol: string) {
-    const next = symbol.toUpperCase();
+    const next = canonicalizeTicker(symbol);
     setSymbols((prev) => {
       if (prev.includes(next)) return prev;
       if (prev.length >= 20) return [...prev.slice(1), next];

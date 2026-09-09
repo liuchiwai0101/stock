@@ -1,3 +1,5 @@
+import { canonicalizeTicker } from "@/lib/ticker";
+
 /** Common U.S. ticker → Chinese reference names (shown when available). */
 export const CHINESE_NAMES: Record<string, string> = {
   AAPL: "苹果",
@@ -18,7 +20,7 @@ export const CHINESE_NAMES: Record<string, string> = {
   "0981.HK": "中芯国际",
   "0939.HK": "建设银行",
   "7709.HK": "南方东英SK海力士",
-  "100.HK": "MINIMAX",
+  "0100.HK": "MINIMAX",
   "000858.SZ": "五粮液",
   "601611.SS": "中国核建",
   AVGO: "博通",
@@ -174,7 +176,7 @@ function shortEnglishName(name: string, max = 22): string {
 }
 
 export function chineseStockName(symbol: string): string | undefined {
-  const key = symbol.trim().toUpperCase();
+  const key = canonicalizeTicker(symbol);
   return CHINESE_NAMES[key];
 }
 
@@ -184,6 +186,6 @@ export function displayStockName(
   englishName?: string,
   mergedCache?: Record<string, string>,
 ): string {
-  const key = symbol.trim().toUpperCase();
+  const key = canonicalizeTicker(symbol);
   return mergedCache?.[key] ?? CHINESE_NAMES[key] ?? shortEnglishName(englishName?.trim() || symbol);
 }

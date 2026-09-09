@@ -10,6 +10,9 @@ describe("Vin watchlist", () => {
     expect(VIN_WATCHLIST_SYMBOLS).toContain("1810.HK");
     expect(VIN_WATCHLIST_SYMBOLS).toContain("0981.HK");
     expect(VIN_WATCHLIST_SYMBOLS).toContain("0939.HK");
+    expect(VIN_WATCHLIST_SYMBOLS).toContain("7709.HK");
+    expect(VIN_WATCHLIST_SYMBOLS).toContain("0100.HK");
+    expect(VIN_WATCHLIST_SYMBOLS).not.toContain("100.HK");
     expect(VIN_WATCHLIST_SYMBOLS).toContain("000858.SZ");
     expect(VIN_WATCHLIST_SYMBOLS).toContain("601611.SS");
     expect(VIN_WATCHLIST_SYMBOLS.length).toBeGreaterThanOrEqual(12);
