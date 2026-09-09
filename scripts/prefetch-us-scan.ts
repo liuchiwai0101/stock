@@ -4,7 +4,7 @@ import { runForecast } from "../src/lib/forecast";
 import { loadQuote } from "../src/lib/market";
 import { defaultPolicy } from "../src/lib/adaptive-policy";
 import { mapPool } from "../src/lib/scan-pool";
-import { slimForecastForCache, type SavedScan } from "../src/lib/scan-cache";
+import { slimForecastForPublish, type SavedScan } from "../src/lib/scan-cache";
 import type { CompanyForecast, Horizon } from "../src/lib/types";
 import { usEquitySymbols } from "../src/lib/us-universe";
 
@@ -46,7 +46,7 @@ async function main() {
     passed += scanned.filter((q) => q?.liveReady).length;
     for (const quote of scanned) {
       if (quote && quote.liveReady && quote.signal === "BUY") {
-        buyMap.set(quote.symbol, slimForecastForCache(quote));
+        buyMap.set(quote.symbol, slimForecastForPublish(quote));
       }
     }
     process.stdout.write(

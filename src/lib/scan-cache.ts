@@ -39,6 +39,27 @@ export function slimForecastForCache(q: CompanyForecast): CompanyForecast {
   };
 }
 
+/** Keep a compact close series so GitHub Pages can expand a BUY row chart. */
+export function slimForecastForPublish(q: CompanyForecast): CompanyForecast {
+  return {
+    ...slimForecastForCache(q),
+    history: q.history.slice(-120),
+    forecast: q.forecast.slice(0, 21),
+  };
+}
+
+export function buySymbolsFromScan(scan: { quotes?: { symbol?: string }[] } | null | undefined): string[] {
+  if (!scan?.quotes?.length) return [];
+  return [...new Set(scan.quotes.map((q) => String(q.symbol ?? "").trim().toUpperCase()).filter(Boolean))];
+}
+
+export function attachHistoryBars(quote: CompanyForecast, bars: CompanyForecast["history"]): CompanyForecast {
+  return {
+    ...quote,
+    history: bars.slice(-180),
+  };
+}
+
 function slimScan(scan: SavedScan): SavedScan {
   return {
     ...scan,

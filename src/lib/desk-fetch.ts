@@ -1,8 +1,8 @@
 import { runDesk, scanBuyBatch, scanCount, searchDesk, loadMarks } from "@/lib/desk";
 import { STATIC_DESK } from "@/lib/static-mode";
-import { fetchPublishedUsScan } from "@/lib/scan-cache";
-import type { Horizon, RunResponse } from "@/lib/types";
-import type { SearchHit } from "@/lib/market";
+import { attachHistoryBars, fetchPublishedUsScan } from "@/lib/scan-cache";
+import { loadQuote, type SearchHit } from "@/lib/market";
+import type { Bar, CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import type { ScanBatchResponse, QuoteMark } from "@/lib/desk";
 
 function publishedToBatch(published: NonNullable<Awaited<ReturnType<typeof fetchPublishedUsScan>>>, offset: number, limit: number): ScanBatchResponse {
@@ -41,6 +41,20 @@ function publishedToBatch(published: NonNullable<Awaited<ReturnType<typeof fetch
     processed: published.scanMeta.scanned || total,
     done: true,
   };
+}
+
+/** Same-origin snapshot bars for expand-row charts (GitHub Pages has no /api/run). */
+export async function fetchQuoteBars(symbol: string): Promise<Bar[] | null> {
+  try {
+    const series = await loadQuote(symbol, "5y", { allowSimulated: false, snapshotOnly: true });
+    return series.bars.length >= 5 ? series.bars : null;
+  } catch {
+    return null;
+  }
+}
+
+export function quoteWithHistory(quote: CompanyForecast, bars: Bar[]): CompanyForecast {
+  return attachHistoryBars(quote, bars);
 }
 
 export async function fetchRun(symbols: string[], horizon: Horizon): Promise<RunResponse> {

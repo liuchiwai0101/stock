@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { clsxSign, formatPct, formatPrice } from "@/lib/format";
 import { ensureChineseNames } from "@/lib/chinese-names-store";
-import { fetchRun } from "@/lib/desk-fetch";
+import { fetchQuoteBars, fetchRun, quoteWithHistory } from "@/lib/desk-fetch";
 import type { CompanyForecast, Horizon, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -226,27 +226,37 @@ export function StockSummaryTable({
       delete next[symbol];
       return next;
     });
-    void fetchRun([symbol], horizon)
-      .then((json) => {
+    void (async () => {
+      let hasBars = false;
+      try {
+        const bars = await fetchQuoteBars(symbol);
+        if (bars?.length) {
+          hasBars = true;
+          setDetailQuotes((prev) => ({ ...prev, [symbol]: quoteWithHistory(source, bars) }));
+        }
+        const json = await fetchRun([symbol], horizon);
         const full = json.quotes?.[0];
         if (full && full.history.length > 0) {
           setDetailQuotes((prev) => ({ ...prev, [symbol]: full }));
-        } else {
+          return;
+        }
+        if (!hasBars) {
           setDetailError((prev) => ({
             ...prev,
             [symbol]: "Could not load chart history for this ticker.",
           }));
         }
-      })
-      .catch(() => {
-        setDetailError((prev) => ({
-          ...prev,
-          [symbol]: "Could not load chart history for this ticker.",
-        }));
-      })
-      .finally(() => {
+      } catch {
+        if (!hasBars) {
+          setDetailError((prev) => ({
+            ...prev,
+            [symbol]: "Could not load chart history for this ticker.",
+          }));
+        }
+      } finally {
         setDetailLoading((prev) => ({ ...prev, [symbol]: false }));
-      });
+      }
+    })();
   }
 
   function toggleRow(symbol: string) {
