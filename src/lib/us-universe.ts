@@ -5,6 +5,8 @@ const NASDAQ_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/nasdaqlisted.txt
 const OTHER_URL = "https://www.nasdaqtrader.com/dynamic/SymDir/otherlisted.txt";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
+/** Deploy nudge after PR #14 merge. */
+
 const FETCH_HEADERS = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
