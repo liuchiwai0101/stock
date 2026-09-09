@@ -643,7 +643,7 @@ export function Dashboard() {
                       value={scanMeta.scanned}
                       detail={scanMeta.total ? `of ${scanMeta.total.toLocaleString()}` : undefined}
                     />
-                    <ScanStat label="Passed 1y BT" value={scanMeta.passed} />
+                    <ScanStat label="Passed 1-year backtest" value={scanMeta.passed} />
                     <ScanStat label="BUY" value={scanMeta.buyCount} highlight />
                   </div>
                 ) : null}
