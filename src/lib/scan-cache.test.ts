@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pickToForecast, slimForecastForCache } from "./scan-cache";
+import { attachHistoryBars, buySymbolsFromScan, pickToForecast, slimForecastForCache, slimForecastForPublish } from "./scan-cache";
 import type { CompanyForecast } from "./types";
 
 const base: CompanyForecast = {
@@ -84,5 +84,18 @@ describe("scan-cache", () => {
     );
     expect(row.symbol).toBe("NVDA");
     expect(row.signal).toBe("BUY");
+  });
+
+  it("keeps compact history for published scans and attach helper", () => {
+    const published = slimForecastForPublish(base);
+    expect(published.history).toHaveLength(1);
+    expect(published.forecast).toHaveLength(1);
+    expect(buySymbolsFromScan({ quotes: [{ symbol: "pbam" }, { symbol: "PBAM" }] })).toEqual(["PBAM"]);
+    const withBars = attachHistoryBars(published, [
+      { date: "2026-01-01", open: 1, high: 1, low: 1, close: 1, volume: 1 },
+      { date: "2026-01-02", open: 2, high: 2, low: 2, close: 2, volume: 1 },
+    ]);
+    expect(withBars.history).toHaveLength(2);
+    expect(withBars.history.at(-1)?.close).toBe(2);
   });
 });
