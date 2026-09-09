@@ -1,5 +1,6 @@
 /**
  * Default watchlist for account Vin — names from the Futu 持倉 screenshots.
+ * Deploy nudge: rebuild Pages/Docker after PR #12 merge.
  * Numeric HK/A codes are stored as Yahoo-style tickers (e.g. 1810.HK, 000858.SZ).
  */
 export const VIN_WATCHLIST_SYMBOLS = [
