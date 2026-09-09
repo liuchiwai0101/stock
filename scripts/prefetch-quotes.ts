@@ -1,9 +1,10 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { loadQuote } from "../src/lib/market";
 import { mapPool } from "../src/lib/scan-pool";
+import { VIN_WATCHLIST_SYMBOLS } from "../src/lib/vin-watchlist";
 import { DEFAULT_SYMBOLS, universeSymbols } from "../src/lib/universe";
 
-const symbols = [...new Set([...DEFAULT_SYMBOLS, ...universeSymbols()])];
+const symbols = [...new Set([...DEFAULT_SYMBOLS, ...universeSymbols(), ...VIN_WATCHLIST_SYMBOLS])];
 
 async function main() {
   await mkdir("public/data/quotes", { recursive: true });

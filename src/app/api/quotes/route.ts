@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const symbolsParam = req.nextUrl.searchParams.get("symbols") ?? "";
   const symbols = [...new Set(symbolsParam.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(
     0,
-    30,
+    80,
   );
 
   if (symbols.length === 0) {

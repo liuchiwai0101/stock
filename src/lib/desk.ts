@@ -154,7 +154,7 @@ export async function searchDesk(query: string): Promise<SearchHit[]> {
 }
 
 export async function loadMarks(symbols: string[]): Promise<{ quotes: QuoteMark[]; errors: { symbol: string; message: string }[] }> {
-  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 30);
+  const unique = [...new Set(symbols.map((s) => s.trim().toUpperCase()).filter(Boolean))].slice(0, 80);
   const errors: { symbol: string; message: string }[] = [];
   const quotes = await mapPool(unique, 6, async (symbol) => {
     try {

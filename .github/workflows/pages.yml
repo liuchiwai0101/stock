@@ -1,6 +1,10 @@
 name: Deploy GitHub Pages
 
 on:
+  schedule:
+    # After U.S. cash close (~17:20 ET) and after Asia morning, weekdays.
+    - cron: "20 21 * * 1-5"
+    - cron: "30 4 * * 1-5"
   push:
     branches:
       - main

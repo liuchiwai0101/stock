@@ -19,6 +19,8 @@ import { Input } from "@/components/ui/input";
 import { usePortfolio } from "@/hooks/use-portfolio";
 import { formatPct } from "@/lib/format";
 import { fetchRun, fetchScanBatch, fetchScanCount, fetchSearch } from "@/lib/desk-fetch";
+import { applyLiveQuote } from "@/lib/live-quote";
+import { usePriceMarks } from "@/hooks/use-price-marks";
 import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
@@ -56,11 +58,27 @@ export function Dashboard() {
   const searchRef = useRef<HTMLDivElement>(null);
   const requestSeq = useRef(0);
 
+  const priceSymbols = useMemo(() => {
+    const set = new Set<string>(symbols);
+    for (const q of run?.quotes ?? []) set.add(q.symbol);
+    return [...set].slice(0, 80);
+  }, [symbols, run]);
+  const livePrices = usePriceMarks(priceSymbols, priceSymbols.length > 0, 60_000);
+
   const marks = useMemo(() => {
     const m: Record<string, number> = {};
     for (const q of run?.quotes ?? []) m[q.symbol] = q.last;
+    for (const [symbol, last] of Object.entries(livePrices.marks)) m[symbol] = last;
     return m;
-  }, [run]);
+  }, [run, livePrices.marks]);
+
+  const liveQuotes = useMemo(() => {
+    if (!run) return [];
+    return run.quotes.map((q) => {
+      const mark = livePrices.quoteMap.get(q.symbol);
+      return mark ? applyLiveQuote(q, mark) : q;
+    });
+  }, [run, livePrices.quoteMap]);
 
   const book = usePortfolio(marks);
 
@@ -70,7 +88,7 @@ export function Dashboard() {
     return m;
   }, [book.portfolio.positions]);
   const chineseNames = useChineseNameCache();
-  const quote = run?.quotes.find((q) => q.symbol === active) ?? run?.quotes[0] ?? null;
+  const quote = liveQuotes.find((q) => q.symbol === active) ?? liveQuotes[0] ?? null;
   const visibleHits = query.trim() ? hits : [];
 
   useEffect(() => {
@@ -633,8 +651,13 @@ export function Dashboard() {
                 </h2>
                 <p className="text-sm text-white/45">
                   {viewMode === "buyList"
-                    ? `Saved U.S. listed scan · ${run.horizon}d horizon · click Scan full US to refresh`
-                    : "Stocks with per-model suggestions — rows start collapsed; tap to expand a chart."}
+                    ? `Saved U.S. listed scan · ${run.horizon}d horizon · last prices from Yahoo (Stooq fallback)`
+                    : "Stocks with per-model suggestions — last prices refresh from Yahoo."}
+                  {livePrices.updatedAt
+                    ? ` · refreshed ${new Date(livePrices.updatedAt).toLocaleString()}`
+                    : livePrices.loading
+                      ? " · fetching latest closes…"
+                      : ""}
                 </p>
                 {viewMode === "buyList" && scanMeta ? (
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -654,7 +677,7 @@ export function Dashboard() {
               ) : null}
 
               <StockSummaryTable
-                quotes={run.quotes}
+                quotes={liveQuotes}
                 active={active}
                 onSelect={setActive}
                 onBuy={buyStock}
