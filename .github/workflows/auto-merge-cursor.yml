@@ -1,0 +1,98 @@
+name: Auto-merge cursor PRs
+
+# When CI succeeds on a cursor/* PR targeting main, merge it.
+# Push to main then triggers Docker publish + GitHub Pages deploy.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  actions: read
+
+concurrency:
+  group: auto-merge-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      startsWith(github.event.workflow_run.head_branch, 'cursor/')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find and merge matching PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const headBranch = run.head_branch;
+            const headSha = run.head_sha;
+
+            const { data: prs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              head: `${owner}:${headBranch}`,
+              base: 'main',
+            });
+
+            const pr = prs.find((p) => p.head.sha === headSha) ?? prs[0];
+            if (!pr) {
+              core.info(`No open PR found for ${headBranch}@${headSha}`);
+              return;
+            }
+
+            if (pr.base.ref !== 'main') {
+              core.info(`Skipping PR #${pr.number}: base is ${pr.base.ref}`);
+              return;
+            }
+
+            if (pr.draft) {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number: pr.number,
+                draft: false,
+              });
+              core.info(`Marked PR #${pr.number} ready for review`);
+            }
+
+            // Ensure required checks on this head are still green.
+            const { data: status } = await github.rest.repos.getCombinedStatusForRef({
+              owner,
+              repo,
+              ref: pr.head.sha,
+            });
+            const checkRuns = await github.paginate(github.rest.checks.listForRef, {
+              owner,
+              repo,
+              ref: pr.head.sha,
+              per_page: 100,
+            });
+            const failed = checkRuns.filter(
+              (c) => c.conclusion && !['success', 'neutral', 'skipped'].includes(c.conclusion),
+            );
+            if (failed.length) {
+              core.setFailed(
+                `Checks not green on ${pr.head.sha}: ${failed.map((c) => c.name).join(', ')}`,
+              );
+              return;
+            }
+
+            core.info(`Merging PR #${pr.number} (${pr.title})`);
+            await github.rest.pulls.merge({
+              owner,
+              repo,
+              pull_number: pr.number,
+              merge_method: 'merge',
+              commit_title: `Merge pull request #${pr.number} from ${pr.head.label}`,
+              commit_message: pr.title,
+            });
+            core.info(`Merged PR #${pr.number}; deploy workflows will run on main.`);
