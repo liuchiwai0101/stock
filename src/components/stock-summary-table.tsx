@@ -39,15 +39,15 @@ type SortColumn =
 
 type SortDir = "asc" | "desc";
 
-const RANK_COL = "w-10 min-w-10 max-w-10";
-const STOCK_COL = "w-[9.5rem] min-w-[9.5rem] max-w-[9.5rem]";
+const RANK_COL = "w-8 min-w-8 max-w-8";
+const STOCK_COL_WATCH = "w-[11rem] min-w-[11rem] max-w-[11rem] sm:w-[14rem] sm:min-w-[14rem] sm:max-w-[14rem]";
+const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min-w-[12rem] sm:max-w-[12rem]";
 const STICKY_RANK = "sticky left-0 z-20";
-const STICKY_STOCK = "sticky left-10 z-20";
-const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
-const NUM_COL = "min-w-[3.75rem] whitespace-nowrap";
-const TAG_COL = "min-w-[4.5rem] whitespace-nowrap";
-const MODEL_COL = "min-w-[4.75rem] whitespace-nowrap";
-const ACTION_COL = "min-w-[8.5rem] whitespace-nowrap";
+const STICKY_STOCK = "sticky left-8 z-20";
+const PRICE_COL = "whitespace-nowrap";
+const NUM_COL = "whitespace-nowrap";
+const TAG_COL = "whitespace-nowrap";
+const ACTION_COL = "whitespace-nowrap";
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
@@ -189,14 +189,8 @@ export function StockSummaryTable({
   }, [baseRows, sort]);
 
   const tradable = rows.some((q) => q.liveReady && q.signal !== "HOLD");
-  const modelCols = useMemo(() => {
-    if (buyList) return [];
-    const present = new Set(quotes.flatMap((q) => (q.models ?? []).map((m) => m.id)));
-    if (present.size === 0) return MODEL_COLUMNS;
-    return MODEL_COLUMNS.filter((c) => present.has(c.id));
-  }, [quotes, buyList]);
-
-  const colCount = 2 + 4 + (buyList ? 2 : 0) + 2 + modelCols.length + 1;
+  const colCount = 2 + 4 + (buyList ? 2 : 0) + 2 + 1;
+  const stockCol = buyList ? STOCK_COL_BUY : STOCK_COL_WATCH;
 
   useEffect(() => {
     void ensureChineseNames(quotes.map((q) => q.symbol));
@@ -243,14 +237,14 @@ export function StockSummaryTable({
               ? scanMeta
                 ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · click a column to sort`
                 : "Full U.S. listed stock scan · Pass + BUY · click a column to sort"
-              : "Charts start collapsed — tap a row to expand or collapse · click a column to sort"}
+              : "Compact watchlist — stock column stays fixed · tap a row for chart and model leans"}
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
           Trade verified
         </Button>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent className={buyList ? "overflow-x-auto" : "overflow-x-hidden"}>
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/45">
             {buyList
@@ -258,22 +252,19 @@ export function StockSummaryTable({
               : "Add tickers and run the model."}
           </p>
         ) : (
-          <table className="w-max min-w-full text-left text-sm">
+          <table className={cn("w-full text-left text-sm", buyList ? "w-max min-w-full" : "table-fixed")}>
             <colgroup>
-              <col className="w-10" />
-              <col className="w-[9.5rem]" />
-              <col className="w-[5.5rem]" />
-              <col className="w-[5.5rem]" />
-              <col className="w-[4.5rem]" />
-              <col className="w-[3.75rem]" />
-              {buyList ? <col className="w-[3.75rem]" /> : null}
-              {buyList ? <col className="w-[4.5rem]" /> : null}
-              <col className="w-[4.5rem]" />
-              <col className="w-[3.75rem]" />
-              {modelCols.map((c) => (
-                <col key={c.id} className="w-[4.75rem]" />
-              ))}
-              <col className="w-[7.5rem]" />
+              <col className="w-8" />
+              <col className={buyList ? "w-[12rem]" : "w-[14rem]"} />
+              <col />
+              <col />
+              <col />
+              <col />
+              {buyList ? <col /> : null}
+              {buyList ? <col /> : null}
+              <col />
+              <col />
+              <col className="w-[7rem]" />
             </colgroup>
             <thead className="text-[10px] tracking-wide uppercase">
               <tr className="border-b border-white/8">
@@ -281,7 +272,7 @@ export function StockSummaryTable({
                   className={cn(
                     RANK_COL,
                     STICKY_RANK,
-                    "bg-[#10161d] py-2 pr-2 font-medium text-white/40",
+                    "bg-[#10161d] py-1.5 pr-1 font-medium text-white/40",
                   )}
                 >
                   #
@@ -291,7 +282,7 @@ export function StockSummaryTable({
                   column="symbol"
                   sort={sort}
                   onSort={toggleSort}
-                  className={cn(STOCK_COL, STICKY_STOCK, "bg-[#10161d]")}
+                  className={cn(stockCol, STICKY_STOCK, "bg-[#10161d]")}
                 />
                 <SortHeader
                   label="Last"
@@ -341,17 +332,7 @@ export function StockSummaryTable({
                   className={TAG_COL}
                 />
                 <SortHeader label="BT" column="bt" sort={sort} onSort={toggleSort} className={NUM_COL} />
-                {modelCols.map((c) => (
-                  <SortHeader
-                    key={c.id}
-                    label={c.short}
-                    column={c.id}
-                    sort={sort}
-                    onSort={toggleSort}
-                    className={MODEL_COL}
-                  />
-                ))}
-                <th className={cn(ACTION_COL, "py-2 font-medium text-white/40")} />
+                <th className={cn(ACTION_COL, "py-1.5 font-medium text-white/40")} />
               </tr>
             </thead>
             <tbody>
@@ -370,16 +351,16 @@ export function StockSummaryTable({
                         className={cn(
                           RANK_COL,
                           STICKY_RANK,
-                          "bg-inherit py-2 pr-2 font-mono text-white/40",
+                          "bg-inherit py-1.5 pr-1 font-mono text-[11px] text-white/40",
                         )}
                       >
                         {index + 1}
                       </td>
                       <td
                         className={cn(
-                          STOCK_COL,
+                          stockCol,
                           STICKY_STOCK,
-                          "overflow-hidden py-2 pr-3",
+                          "overflow-hidden py-1.5 pr-2",
                           isOpen || q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
                         )}
                       >
@@ -392,58 +373,38 @@ export function StockSummaryTable({
                           <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                         </button>
                       </td>
-                      <td className={cn(PRICE_COL, "py-2 pr-3 font-mono")}>
+                      <td className={cn(PRICE_COL, "py-1.5 pr-2 font-mono text-[12px]")}>
                         {formatPrice(q.last)}
-                        <div className={cn("text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
+                        <div className={cn("text-[10px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
                       </td>
-                      <td className={cn(PRICE_COL, "py-2 pr-3 font-mono")}>{formatPrice(q.targetPrice)}</td>
-                      <td className={cn(NUM_COL, "py-2 pr-3 font-mono", clsxSign(q.expectedReturn))}>
+                      <td className={cn(PRICE_COL, "py-1.5 pr-2 font-mono text-[12px]")}>{formatPrice(q.targetPrice)}</td>
+                      <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px]", clsxSign(q.expectedReturn))}>
                         {formatPct(q.expectedReturn)}
                       </td>
-                      <td className={cn(NUM_COL, "py-2 pr-3 font-mono text-sky-200")}>
+                      <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px] text-sky-200")}>
                         {(q.metrics.hitRate * 100).toFixed(0)}%
                       </td>
                       {buyList ? (
-                        <td className={cn(NUM_COL, "py-2 pr-3 font-mono text-white/65")}>
+                        <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px] text-white/65")}>
                           {(q.confidence * 100).toFixed(0)}%
                         </td>
                       ) : null}
                       {buyList ? (
-                        <td className={cn(NUM_COL, "py-2 pr-3 font-mono text-white/65")}>
+                        <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px] text-white/65")}>
                           {q.backtest.sharpe.toFixed(2)}
                         </td>
                       ) : null}
-                      <td className={cn(TAG_COL, "py-2 pr-3")}>
-                        <span className={cn("rounded-full border px-2 py-0.5 text-[11px]", signalClass(q.signal))}>
+                      <td className={cn(TAG_COL, "py-1.5 pr-2")}>
+                        <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px]", signalClass(q.signal))}>
                           {q.signal}
                         </span>
                       </td>
-                      <td className={cn(NUM_COL, "py-2 pr-3")}>
+                      <td className={cn(NUM_COL, "py-1.5 pr-2 text-[12px]")}>
                         <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
                           {q.liveReady ? "Pass" : "Fail"}
                         </span>
                       </td>
-                      {modelCols.map((c) => {
-                        const m = modelSuggestion(q, c.id);
-                        if (!m) {
-                          return (
-                            <td key={c.id} className={cn(MODEL_COL, "py-2 pr-3 font-mono text-white/30")}>
-                              —
-                            </td>
-                          );
-                        }
-                        return (
-                          <td
-                            key={c.id}
-                            className={cn(MODEL_COL, "py-2 pr-3 font-mono")}
-                            title={`${m.label}: ${formatPrice(m.targetPrice)} · wt ${(m.weight * 100).toFixed(0)}%`}
-                          >
-                            <span className={clsxSign(m.expectedReturn)}>{formatPct(m.expectedReturn)}</span>
-                            <div className="text-[10px] text-white/35">{formatPrice(m.targetPrice)}</div>
-                          </td>
-                        );
-                      })}
-                      <td className={cn(ACTION_COL, "py-2 text-right")}>
+                      <td className={cn(ACTION_COL, "py-1.5 text-right")}>
                         <div className="flex justify-end gap-1">
                           <Button
                             size="xs"
@@ -523,6 +484,26 @@ export function StockSummaryTable({
                                 {q.signal}
                               </span>
                             </div>
+                            {!buyList && (q.models?.length ?? 0) > 0 ? (
+                              <div className="mb-2 flex flex-wrap gap-1 px-1">
+                                {MODEL_COLUMNS.map((c) => {
+                                  const m = modelSuggestion(q, c.id);
+                                  if (!m) return null;
+                                  return (
+                                    <span
+                                      key={c.id}
+                                      className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/4 px-1.5 py-0.5 text-[10px]"
+                                      title={`${m.label} · wt ${(m.weight * 100).toFixed(0)}%`}
+                                    >
+                                      <span className="text-white/45">{c.short}</span>
+                                      <span className={cn("font-mono", clsxSign(m.expectedReturn))}>
+                                        {formatPct(m.expectedReturn)}
+                                      </span>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            ) : null}
                             <ForecastChart quote={detailQuotes[q.symbol] ?? q} compact />
                           </div>
                         </td>

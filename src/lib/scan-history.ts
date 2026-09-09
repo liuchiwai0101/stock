@@ -1,8 +1,9 @@
 import { CAPTURE_TIMEZONE, dateKeyInTimeZone } from "@/lib/market-hours";
 import type { DailyPick } from "@/lib/pick-score";
 import type { Horizon } from "@/lib/types";
+import { scopedStorageKey } from "@/lib/account";
 
-const STORAGE_KEY = "signal-desk-daily-scans-v1";
+const STORAGE_BASE = "signal-desk-daily-scans-v1";
 const MAX_DAYS = 120;
 
 export type DailyScanRecord = {
@@ -19,10 +20,15 @@ export type DailyScanRecord = {
   topPicks: DailyPick[];
 };
 
+function storageKey() {
+  return typeof window === "undefined" ? STORAGE_BASE : scopedStorageKey(STORAGE_BASE);
+}
+
 export function loadScanHistory(): DailyScanRecord[] {
   if (typeof window === "undefined") return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
+    const raw =
+      window.localStorage.getItem(storageKey()) ?? window.localStorage.getItem(STORAGE_BASE);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as DailyScanRecord[];
     return Array.isArray(parsed) ? parsed : [];
@@ -36,7 +42,11 @@ export function saveScanHistory(records: DailyScanRecord[]) {
   const trimmed = [...records]
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, MAX_DAYS);
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+  window.localStorage.setItem(storageKey(), JSON.stringify(trimmed));
+}
+
+export function replaceScanHistory(records: DailyScanRecord[]) {
+  saveScanHistory(records);
 }
 
 export function todayCaptureKey(date = new Date(), timeZone = CAPTURE_TIMEZONE): string {
