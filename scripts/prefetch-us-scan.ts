@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { copyFileSync, existsSync } from "node:fs";
 import { runForecast } from "../src/lib/forecast";
 import { loadQuote } from "../src/lib/market";
 import { defaultPolicy } from "../src/lib/adaptive-policy";
@@ -12,6 +13,17 @@ const CONCURRENCY = 8;
 const BATCH = 80;
 
 async function main() {
+  await mkdir("public/data", { recursive: true });
+  const reuseFrom = ["public/data/us-scan.json", "data/us-scan.json", "docs/data/us-scan.json"];
+  const existing = reuseFrom.find((p) => existsSync(p));
+  if (existing && process.env.FORCE_FULL_US_SCAN !== "1") {
+    if (existing !== "public/data/us-scan.json") {
+      copyFileSync(existing, "public/data/us-scan.json");
+    }
+    process.stdout.write(`Reusing ${existing} (set FORCE_FULL_US_SCAN=1 to rescan).\n`);
+    return;
+  }
+
   const symbols = await usEquitySymbols();
   const policy = defaultPolicy();
   const buyMap = new Map<string, CompanyForecast>();
