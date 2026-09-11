@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockNameInline } from "@/components/stock-name";
 import { TradeOrderForm } from "@/components/trade-order-form";
@@ -115,6 +115,85 @@ function compareRows(
   }
   if (cmp === 0) cmp = a.symbol.localeCompare(b.symbol);
   return dir === "asc" ? cmp : -cmp;
+}
+
+function RowActions({
+  q,
+  watchSet,
+  heldShares,
+  onAddSymbol,
+  onRemoveSymbol,
+  onBuy,
+  onSell,
+}: {
+  q: CompanyForecast;
+  watchSet: Set<string>;
+  heldShares: Record<string, number>;
+  onAddSymbol?: (symbol: string) => void;
+  onRemoveSymbol?: (symbol: string) => void;
+  onBuy: () => void;
+  onSell: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap justify-end gap-1">
+      {onAddSymbol && onRemoveSymbol ? (
+        watchSet.has(q.symbol.toUpperCase()) ? (
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveSymbol(q.symbol);
+            }}
+          >
+            Remove
+          </Button>
+        ) : (
+          <Button
+            size="xs"
+            variant="outline"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddSymbol(q.symbol);
+            }}
+          >
+            Add
+          </Button>
+        )
+      ) : null}
+      <Button
+        size="xs"
+        variant="outline"
+        disabled={!q.liveReady}
+        onClick={(e) => {
+          e.stopPropagation();
+          onBuy();
+        }}
+      >
+        Buy
+      </Button>
+      <Button
+        size="xs"
+        variant="outline"
+        disabled={(heldShares[q.symbol] ?? 0) <= 0}
+        onClick={(e) => {
+          e.stopPropagation();
+          onSell();
+        }}
+      >
+        Sell
+      </Button>
+    </div>
+  );
+}
+
+function Metric({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="min-w-0 overflow-hidden rounded-md bg-white/[0.04] px-2 py-1.5">
+      <div className="text-[10px] leading-none tracking-wide text-white/40 uppercase">{label}</div>
+      <div className="mt-1 font-mono text-[13px] leading-tight tabular-nums break-all">{children}</div>
+    </div>
+  );
 }
 
 function SortHeader({
@@ -279,16 +358,16 @@ export function StockSummaryTable({
           <CardDescription>
             {buyList
               ? scanMeta
-                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap ▸ for chart · Add/Remove for watchlist`
-                : "Full U.S. listed common-stock scan · Pass + BUY · tap ▸ for chart · Add/Remove for watchlist"
-              : "Swipe sideways for last / target / expected · tap a row for chart · Add/Remove edits the list"}
+                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap a card for chart`
+                : "Full U.S. listed common-stock scan · Pass + BUY · tap a card for chart"
+              : "Each stock lists last, target, and expected on its own row · tap for chart"}
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
           Trade verified
         </Button>
       </CardHeader>
-      <CardContent className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+      <CardContent className="overflow-x-hidden px-3 md:overflow-x-auto">
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/45">
             {buyList
@@ -296,7 +375,139 @@ export function StockSummaryTable({
               : "Add tickers and run the model."}
           </p>
         ) : (
-          <table className="w-max min-w-full text-left text-sm">
+          <>
+            <div className="space-y-2 md:hidden">
+              {rows.map((q, index) => {
+                const isOpen = expanded === q.symbol;
+                const detail = detailQuotes[q.symbol] ?? q;
+                const loading = Boolean(detailLoading[q.symbol]);
+                const err = detailError[q.symbol];
+                return (
+                  <div
+                    key={q.symbol}
+                    className={cn(
+                      "rounded-lg border border-white/10 bg-white/[0.03] p-3",
+                      (isOpen || q.symbol === active) && "border-sky-400/25 bg-white/[0.05]",
+                    )}
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-start gap-2 text-left"
+                      onClick={() => toggleRow(q.symbol)}
+                      aria-expanded={isOpen}
+                    >
+                      <span className="w-5 shrink-0 font-mono text-[11px] text-white/40">{index + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-2">
+                          <span className="text-white/35">{isOpen ? "▾" : "▸"}</span>
+                          <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
+                        </span>
+                      </span>
+                      <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]", signalClass(q.signal))}>
+                        {q.signal}
+                      </span>
+                    </button>
+                    <div className="mt-2 grid grid-cols-3 gap-1.5">
+                      <Metric label="Last">
+                        <span className="block">{formatPrice(q.last)}</span>
+                        <span className={cn("block text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
+                      </Metric>
+                      <Metric label="Target">{formatPrice(q.targetPrice)}</Metric>
+                      <Metric label="Expected">
+                        <span className={clsxSign(q.expectedReturn)}>{formatPct(q.expectedReturn)}</span>
+                      </Metric>
+                      <Metric label="Hit">{(q.metrics.hitRate * 100).toFixed(0)}%</Metric>
+                      <Metric label="Backtest">
+                        <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
+                          {q.liveReady ? "Pass" : "Fail"}
+                        </span>
+                      </Metric>
+                      {buyList ? (
+                        <Metric label="Conf">{(q.confidence * 100).toFixed(0)}%</Metric>
+                      ) : (
+                        <Metric label="Sharpe">{q.backtest.sharpe.toFixed(2)}</Metric>
+                      )}
+                    </div>
+                    <div className="mt-2">
+                      <RowActions
+                        q={q}
+                        watchSet={watchSet}
+                        heldShares={heldShares}
+                        onAddSymbol={onAddSymbol}
+                        onRemoveSymbol={onRemoveSymbol}
+                        onBuy={() => setTradeEditor({ symbol: q.symbol, side: "BUY" })}
+                        onSell={() => setTradeEditor({ symbol: q.symbol, side: "SELL" })}
+                      />
+                    </div>
+                    {tradeEditor?.symbol === q.symbol ? (
+                      <div className="mt-2">
+                        <TradeOrderForm
+                          side={tradeEditor.side}
+                          symbol={q.symbol}
+                          name={q.name}
+                          price={q.last}
+                          defaultShares={
+                            tradeEditor.side === "BUY"
+                              ? Math.max(1, suggestedShares?.(q) ?? 1)
+                              : (heldShares[q.symbol] ?? 1)
+                          }
+                          maxShares={tradeEditor.side === "SELL" ? heldShares[q.symbol] : undefined}
+                          heldLabel={
+                            tradeEditor.side === "SELL" ? `hold ${heldShares[q.symbol] ?? 0} sh` : undefined
+                          }
+                          onSubmit={(shares) => {
+                            if (tradeEditor.side === "BUY") onBuy(q, shares);
+                            else onSell(q, shares);
+                            setTradeEditor(null);
+                          }}
+                          onCancel={() => setTradeEditor(null)}
+                        />
+                      </div>
+                    ) : null}
+                    {isOpen ? (
+                      <div className="mt-3">
+                        {!buyList && (q.models?.length ?? 0) > 0 ? (
+                          <div className="mb-2 flex flex-wrap gap-1">
+                            {MODEL_COLUMNS.map((c) => {
+                              const m = modelSuggestion(q, c.id);
+                              if (!m) return null;
+                              return (
+                                <span
+                                  key={c.id}
+                                  className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/4 px-1.5 py-0.5 text-[10px]"
+                                >
+                                  <span className="text-white/45">{c.short}</span>
+                                  <span className={cn("font-mono", clsxSign(m.expectedReturn))}>
+                                    {formatPct(m.expectedReturn)}
+                                  </span>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null}
+                        {loading && detail.history.length < 5 ? (
+                          <div className="flex h-[180px] items-center justify-center text-sm text-white/45">
+                            Loading chart for {q.symbol}…
+                          </div>
+                        ) : err && detail.history.length < 5 ? (
+                          <div className="flex h-[140px] flex-col items-center justify-center gap-2 text-sm text-amber-200/85">
+                            <span>{err}</span>
+                            <Button size="xs" variant="outline" onClick={() => loadDetail(q.symbol, q)}>
+                              Retry
+                            </Button>
+                          </div>
+                        ) : (
+                          <ForecastChart quote={detail} compact />
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] md:block">
+            <table className="w-max min-w-full text-left text-sm">
             <colgroup>
               <col className="w-8" />
               <col className={buyList ? "w-[12rem]" : "w-[14rem]"} />
@@ -453,55 +664,15 @@ export function StockSummaryTable({
                         </span>
                       </td>
                       <td className={cn(ACTION_COL, "py-1.5 text-right")}>
-                        <div className="flex justify-end gap-1">
-                          {onAddSymbol && onRemoveSymbol ? (
-                            watchSet.has(q.symbol.toUpperCase()) ? (
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onRemoveSymbol(q.symbol);
-                                }}
-                              >
-                                Remove
-                              </Button>
-                            ) : (
-                              <Button
-                                size="xs"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onAddSymbol(q.symbol);
-                                }}
-                              >
-                                Add
-                              </Button>
-                            )
-                          ) : null}
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            disabled={!q.liveReady}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTradeEditor({ symbol: q.symbol, side: "BUY" });
-                            }}
-                          >
-                            Buy
-                          </Button>
-                          <Button
-                            size="xs"
-                            variant="outline"
-                            disabled={(heldShares[q.symbol] ?? 0) <= 0}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setTradeEditor({ symbol: q.symbol, side: "SELL" });
-                            }}
-                          >
-                            Sell
-                          </Button>
-                        </div>
+                        <RowActions
+                          q={q}
+                          watchSet={watchSet}
+                          heldShares={heldShares}
+                          onAddSymbol={onAddSymbol}
+                          onRemoveSymbol={onRemoveSymbol}
+                          onBuy={() => setTradeEditor({ symbol: q.symbol, side: "BUY" })}
+                          onSell={() => setTradeEditor({ symbol: q.symbol, side: "SELL" })}
+                        />
                       </td>
                     </tr>
                     {tradeEditor?.symbol === q.symbol ? (
@@ -616,6 +787,8 @@ export function StockSummaryTable({
               })}
             </tbody>
           </table>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>
