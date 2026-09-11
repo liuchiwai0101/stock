@@ -1,4 +1,4 @@
-import { canonicalizeTicker } from "@/lib/ticker";
+import { canonicalizeTicker, mergeTickerSearchHits } from "@/lib/ticker";
 import type { Bar, DataSource } from "@/lib/types";
 import { companyName } from "@/lib/universe";
 
@@ -355,6 +355,7 @@ export type SearchHit = { symbol: string; name: string; type: string };
 export async function searchTickers(query: string): Promise<SearchHit[]> {
   const q = query.trim();
   if (q.length < 1) return [];
+  let remote: SearchHit[] = [];
   try {
     const url = `https://query2.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0`;
     const res = await fetch(url, { headers: FETCH_HEADERS, cache: "no-store" });
@@ -362,19 +363,19 @@ export async function searchTickers(query: string): Promise<SearchHit[]> {
     const json = (await res.json()) as {
       quotes?: { symbol?: string; shortname?: string; longname?: string; quoteType?: string }[];
     };
-    return (json.quotes ?? [])
+    remote = (json.quotes ?? [])
       .filter((row) => row.symbol && (row.quoteType === "EQUITY" || row.quoteType === "ETF"))
       .map((row) => ({
         symbol: row.symbol!.toUpperCase(),
         name: row.shortname ?? row.longname ?? row.symbol!,
         type: row.quoteType ?? "EQUITY",
-      }))
-      .slice(0, 8);
+      }));
   } catch {
     const { UNIVERSE } = await import("@/lib/universe");
     const needle = q.toLowerCase();
-    return UNIVERSE.filter(
-      (c) => c.symbol.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle)
+    remote = UNIVERSE.filter(
+      (c) => c.symbol.toLowerCase().includes(needle) || c.name.toLowerCase().includes(needle),
     ).map((c) => ({ symbol: c.symbol, name: c.name, type: "EQUITY" }));
   }
+  return mergeTickerSearchHits(q, remote, companyName);
 }
