@@ -13,3 +13,18 @@ export function canonicalizeTicker(symbol: string): string {
   }
   return t;
 }
+
+export type TickerSearchHit = { symbol: string; name: string; type: string };
+
+/** Always keep the typed ticker first so Add works even when Yahoo search is blocked. */
+export function mergeTickerSearchHits(
+  query: string,
+  remote: TickerSearchHit[],
+  nameFor = (symbol: string) => symbol,
+): TickerSearchHit[] {
+  const typed = canonicalizeTicker(query);
+  if (!typed) return remote.slice(0, 8);
+  const typedHit: TickerSearchHit = { symbol: typed, name: nameFor(typed), type: "EQUITY" };
+  const rest = remote.filter((h) => h.symbol.toUpperCase() !== typed);
+  return [typedHit, ...rest].slice(0, 8);
+}

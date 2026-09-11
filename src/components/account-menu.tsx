@@ -68,11 +68,19 @@ export function AccountMenu() {
               </Button>
             </div>
           ) : (
-            <div className="space-y-2.5">
+            <form
+              className="space-y-2.5"
+              autoComplete="on"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submit();
+              }}
+            >
               <p className="text-[11px] text-white/50">Sign in with a desk account</p>
               <select
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
                 className="h-9 w-full rounded-md border border-white/10 bg-white/3 px-2 text-sm text-white"
               >
                 {listHardcodedUsernames().map((name) => (
@@ -83,24 +91,22 @@ export function AccountMenu() {
               </select>
               <Input
                 type="password"
+                name="desk-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 className="h-9 bg-white/3"
                 autoComplete="current-password"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void submit();
-                }}
               />
               {error ? <p className="text-[11px] text-rose-300">{error}</p> : null}
-              <Button size="sm" className="w-full" disabled={busy} onClick={() => void submit()}>
+              <Button size="sm" className="w-full" disabled={busy} type="submit">
                 <LogIn className="size-3.5" />
                 Sign in
               </Button>
               <p className="text-[10px] leading-relaxed text-white/40">
                 Accounts are assigned by the desk. Default password is username + 123 (e.g. Vin → Vin123).
               </p>
-            </div>
+            </form>
           )}
         </div>
       ) : null}

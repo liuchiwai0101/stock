@@ -26,8 +26,8 @@ import { usePriceMarks } from "@/hooks/use-price-marks";
 import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
-import { canonicalizeTicker } from "@/lib/ticker";
-import { UNIVERSE } from "@/lib/universe";
+import { canonicalizeTicker, mergeTickerSearchHits } from "@/lib/ticker";
+import { UNIVERSE, companyName } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
 /** Deploy nudge after PR #19 so GitHub Pages rebuilds Scan full US. */
@@ -61,7 +61,7 @@ export function Dashboard() {
     passed: number;
     buyCount: number;
   } | null>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLFormElement>(null);
   const requestSeq = useRef(0);
   const busy = runLoading || scanLoading;
 
@@ -96,7 +96,10 @@ export function Dashboard() {
   }, [book.portfolio.positions]);
   const chineseNames = useChineseNameCache();
   const quote = liveQuotes.find((q) => q.symbol === active) ?? liveQuotes[0] ?? null;
-  const visibleHits = query.trim() ? hits : [];
+  const menuHits = useMemo(
+    () => (query.trim() ? mergeTickerSearchHits(query, hits, (s) => companyName(s)) : []),
+    [query, hits],
+  );
 
   useEffect(() => {
     const tickers = [
@@ -369,15 +372,17 @@ export function Dashboard() {
   }, [query]);
 
   useEffect(() => {
-    function onDoc(e: MouseEvent) {
+    function onDoc(e: Event) {
       if (!searchRef.current?.contains(e.target as Node)) setSearchOpen(false);
     }
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
+    document.addEventListener("pointerdown", onDoc);
+    return () => document.removeEventListener("pointerdown", onDoc);
   }, []);
 
   function addSymbol(symbol: string) {
     const next = canonicalizeTicker(symbol);
+    if (!next) return;
+    setViewMode("watch");
     setSymbols((prev) => {
       if (prev.includes(next)) return prev;
       if (prev.length >= 20) return [...prev.slice(1), next];
@@ -385,6 +390,7 @@ export function Dashboard() {
     });
     setActive(next);
     setQuery("");
+    setHits([]);
     setSearchOpen(false);
   }
 
@@ -487,38 +493,69 @@ export function Dashboard() {
             </Link>
           </div>
           <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
-            <div ref={searchRef} className="relative min-w-0 flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/35" />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => visibleHits.length && setSearchOpen(true)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && query.trim()) addSymbol(query.trim());
-                }}
-                placeholder="Add ticker…"
-                className="h-10 bg-white/3 pl-8"
-              />
-              {searchOpen && visibleHits.length > 0 && (
-                <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-lg border border-white/10 bg-[#121820] shadow-2xl">
-                  {visibleHits.map((hit) => (
-                    <button
-                      key={hit.symbol}
-                      type="button"
-                      onClick={() => addSymbol(hit.symbol)}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-white/6"
-                    >
-                      <span className="min-w-0">
-                        <span className="font-medium">{hit.symbol}</span>
-                        <span className="block truncate text-xs text-white/50">
-                          {displayStockName(hit.symbol, hit.name, chineseNames)}
+            <form
+              ref={searchRef}
+              className="relative flex min-w-0 flex-1 gap-1.5"
+              autoComplete="off"
+              action="#"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (query.trim()) addSymbol(query.trim());
+              }}
+            >
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/35" />
+                <Input
+                  type="search"
+                  name="stock-ticker"
+                  inputMode="search"
+                  enterKeyHint="done"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="characters"
+                  spellCheck={false}
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setSearchOpen(true);
+                  }}
+                  onFocus={() => setSearchOpen(true)}
+                  placeholder="Add ticker…"
+                  className="h-10 bg-white/3 pl-8"
+                />
+                {searchOpen && menuHits.length > 0 ? (
+                  <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-lg border border-white/10 bg-[#121820] shadow-2xl">
+                    {menuHits.map((hit) => (
+                      <button
+                        key={hit.symbol}
+                        type="button"
+                        onClick={() => addSymbol(hit.symbol)}
+                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm hover:bg-white/6"
+                      >
+                        <span className="min-w-0">
+                          <span className="font-medium">{hit.symbol}</span>
+                          <span className="block truncate text-xs text-white/50">
+                            {displayStockName(hit.symbol, hit.name, chineseNames)}
+                          </span>
                         </span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+                        <span className="shrink-0 text-[11px] text-sky-300">Add</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              <Button
+                type="submit"
+                size="sm"
+                className="h-10 shrink-0 px-3"
+                disabled={!query.trim()}
+              >
+                Add
+              </Button>
+            </form>
             <div className="flex flex-wrap items-center gap-1.5">
               <div className="inline-flex shrink-0 rounded-lg border border-white/10 bg-white/3 p-0.5">
                 <button

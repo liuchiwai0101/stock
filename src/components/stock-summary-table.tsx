@@ -46,10 +46,10 @@ const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min
 /* Deploy nudge after PR #13. */
 const STICKY_RANK = "sticky left-0 z-[5]";
 const STICKY_STOCK = "sticky left-8 z-[5]";
-const PRICE_COL = "whitespace-nowrap";
-const NUM_COL = "whitespace-nowrap";
-const TAG_COL = "whitespace-nowrap";
-const ACTION_COL = "whitespace-nowrap";
+const PRICE_COL = "min-w-[6.75rem] whitespace-nowrap";
+const NUM_COL = "min-w-[5.5rem] whitespace-nowrap";
+const TAG_COL = "min-w-[4.5rem] whitespace-nowrap";
+const ACTION_COL = "min-w-[9rem] whitespace-nowrap";
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
@@ -137,7 +137,7 @@ function SortHeader({
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "inline-flex max-w-[7.5rem] items-center gap-1 text-left leading-tight transition hover:text-white/75",
+          "inline-flex items-center gap-1 whitespace-nowrap text-left leading-tight transition hover:text-white/75",
           active ? "text-sky-200" : "text-white/40",
         )}
       >
@@ -270,7 +270,7 @@ export function StockSummaryTable({
   }
 
   return (
-    <Card className="bg-[#10161d]">
+    <Card className="overflow-visible bg-[#10161d]">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
         <div>
           <CardTitle className="text-base">
@@ -281,14 +281,14 @@ export function StockSummaryTable({
               ? scanMeta
                 ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap ▸ for chart · Add/Remove for watchlist`
                 : "Full U.S. listed common-stock scan · Pass + BUY · tap ▸ for chart · Add/Remove for watchlist"
-              : "Compact watchlist — stock column stays fixed · tap a row for chart · Add/Remove edits the list"}
+              : "Swipe sideways for last / target / expected · tap a row for chart · Add/Remove edits the list"}
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
           Trade verified
         </Button>
       </CardHeader>
-      <CardContent className="overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+      <CardContent className="max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
         {rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-white/45">
             {buyList
@@ -296,7 +296,7 @@ export function StockSummaryTable({
               : "Add tickers and run the model."}
           </p>
         ) : (
-          <table className={cn("w-full text-left text-sm", buyList ? "w-max min-w-full" : "min-w-[36rem] table-fixed")}>
+          <table className="w-max min-w-full text-left text-sm">
             <colgroup>
               <col className="w-8" />
               <col className={buyList ? "w-[12rem]" : "w-[14rem]"} />
