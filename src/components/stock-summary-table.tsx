@@ -12,6 +12,8 @@ import { fetchQuoteBars, fetchRun, quoteWithHistory } from "@/lib/desk-fetch";
 import type { CompanyForecast, Horizon, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
+/** Deploy nudge after PR #22 so Pages picks up stacked mobile stock cards. */
+
 const MODEL_COLUMNS: { id: ModelId; short: string }[] = [
   { id: "holt", short: "Holt" },
   { id: "ols", short: "OLS" },
