@@ -492,6 +492,7 @@ export function Dashboard() {
               {book.portfolio.fills.length === 1 ? "" : "s"} →
             </Link>
           </div>
+          {/* Deploy nudge after PR #21 so Pages/Docker pick up the mobile search/table fix. */}
           <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
             <form
               ref={searchRef}
