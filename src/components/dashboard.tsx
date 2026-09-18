@@ -500,7 +500,7 @@ export function Dashboard() {
               {book.portfolio.fills.length === 1 ? "" : "s"} →
             </Link>
           </div>
-          {/* Deploy nudge: iOS add-ticker reads the native field, not React IME state. */}
+          {/* Deploy nudge after PR #23 so Pages rebuilds the iPhone Safari ticker-add fix. */}
           <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
             <form
               ref={searchRef}
