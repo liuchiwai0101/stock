@@ -10,6 +10,9 @@ import { horizonHitRate, liveHitRate } from "@/lib/evaluate-predictions";
 import { clsxSign, formatMoney, formatPct } from "@/lib/format";
 import { runLearnCycle, type LearnReport } from "@/lib/learn-cycle";
 import { loadPredictionLog, modelHitRates } from "@/lib/prediction-log";
+import { loadScanHistory } from "@/lib/scan-history";
+import { compareLatestScans } from "@/lib/suggestion-compare";
+import { SuggestionComparePanel } from "@/components/suggestion-compare-panel";
 import { unreliableSymbols } from "@/lib/stock-reliability";
 import { getServerSnapshotPolicy, loadPolicy, subscribePolicy } from "@/lib/policy-store";
 import { MODEL_LABELS } from "@/lib/models/registry";
@@ -21,9 +24,11 @@ export function LearnPage() {
   const [busy, setBusy] = useState(false);
   const [report, setReport] = useState<LearnReport | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [scanHistory, setScanHistory] = useState(() => loadScanHistory());
 
   const refreshLog = useCallback(() => {
     setLog(loadPredictionLog());
+    setScanHistory(loadScanHistory());
   }, []);
 
   async function evaluateNow() {
@@ -46,6 +51,7 @@ export function LearnPage() {
   const blocked = useMemo(() => [...unreliableSymbols(log)], [log]);
   const scored = log.filter((r) => r.evaluated);
   const autoReady = canAutoTrade(policy);
+  const suggestionCompare = useMemo(() => compareLatestScans(scanHistory), [scanHistory]);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -85,6 +91,14 @@ export function LearnPage() {
           <Stat label="BUY hurdle" value={`${policy.buyHurdleScale.toFixed(2)}×`} />
           <Stat label="Auto-trade" value={autoReady ? "Ready" : "Locked"} />
         </div>
+
+        {suggestionCompare ? (
+          <Card className="bg-[#10161d]">
+            <CardContent className="pt-5">
+              <SuggestionComparePanel compare={suggestionCompare} compact />
+            </CardContent>
+          </Card>
+        ) : null}
 
         <Card className="bg-[#10161d]">
           <CardHeader className="pb-2">

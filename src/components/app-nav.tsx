@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardList, FlaskConical, LineChart, Radar } from "lucide-react";
+import { Activity, ClipboardList, FlaskConical, LineChart, Radar, ShieldCheck } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const LINKS = [
   { href: "/", label: "Desk", icon: Activity },
   { href: "/monitor", label: "Monitor", icon: Radar },
   { href: "/learn", label: "Learn", icon: FlaskConical },
+  { href: "/verify", label: "Verify", icon: ShieldCheck },
   { href: "/pnl", label: "P&L", icon: LineChart },
   { href: "/trades", label: "Trades", icon: ClipboardList },
 ] as const;
@@ -35,7 +36,7 @@ export function AppNav({ subtitle }: { subtitle?: string }) {
 
         <div className="ml-auto flex h-9 shrink-0 items-center gap-1.5 sm:gap-2.5">
           <nav
-            className="flex h-9 max-w-[min(100vw-7.5rem,22rem)] shrink items-center gap-0.5 overflow-x-auto rounded-lg border border-white/10 bg-white/3 p-0.5 [-webkit-overflow-scrolling:touch] sm:max-w-none sm:overflow-visible"
+            className="flex h-9 max-w-[min(100vw-6.5rem,26rem)] shrink items-center gap-0.5 overflow-x-auto rounded-lg border border-white/10 bg-white/3 p-0.5 [-webkit-overflow-scrolling:touch] sm:max-w-none sm:overflow-visible"
             aria-label="Primary"
           >
             {LINKS.map(({ href, label, icon: Icon }) => {

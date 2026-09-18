@@ -6,17 +6,19 @@ import { scopedStorageKey } from "@/lib/account";
 const STORAGE_BASE = "signal-desk-daily-scans-v1";
 const MAX_DAYS = 120;
 
+export type ScanMeta = {
+  scanned: number;
+  total: number;
+  passed: number;
+  buyCount: number;
+};
+
 export type DailyScanRecord = {
   date: string;
   horizon: Horizon;
   capturedAt: string;
   timezone: string;
-  scanMeta: {
-    scanned: number;
-    total: number;
-    passed: number;
-    buyCount: number;
-  };
+  scanMeta: ScanMeta;
   topPicks: DailyPick[];
 };
 
@@ -60,6 +62,11 @@ export function hasCaptureForDate(dateKey: string): boolean {
 export function getLatestDailyScan(): DailyScanRecord | null {
   const history = loadScanHistory();
   return history[0] ?? null;
+}
+
+export function getPreviousDailyScan(): DailyScanRecord | null {
+  const history = loadScanHistory();
+  return history[1] ?? null;
 }
 
 export function getDailyScan(dateKey: string): DailyScanRecord | null {
