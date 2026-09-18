@@ -22,6 +22,7 @@ const ROOT_ENTRIES = [
   "monitor",
   "learn",
   "pnl",
+  "verify",
   "_not-found",
   "404",
 ];
