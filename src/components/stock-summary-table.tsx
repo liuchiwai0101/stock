@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockNameInline } from "@/components/stock-name";
 import { TradeOrderForm } from "@/components/trade-order-form";
@@ -12,7 +12,7 @@ import { fetchQuoteBars, fetchRun, quoteWithHistory } from "@/lib/desk-fetch";
 import type { CompanyForecast, Horizon, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Deploy nudge after PR #22 so Pages picks up stacked mobile stock cards. */
+/** Deploy nudge: compact mobile list + sort chips. */
 
 const MODEL_COLUMNS: { id: ModelId; short: string }[] = [
   { id: "holt", short: "Holt" },
@@ -137,7 +137,7 @@ function RowActions({
   onSell: () => void;
 }) {
   return (
-    <div className="flex flex-wrap justify-end gap-1">
+    <div className="flex flex-wrap justify-end gap-0.5">
       {onAddSymbol && onRemoveSymbol ? (
         watchSet.has(q.symbol.toUpperCase()) ? (
           <Button
@@ -189,12 +189,30 @@ function RowActions({
   );
 }
 
-function Metric({ label, children }: { label: string; children: ReactNode }) {
+function SortChip({
+  label,
+  column,
+  sort,
+  onSort,
+}: {
+  label: string;
+  column: SortColumn;
+  sort: { column: SortColumn; dir: SortDir };
+  onSort: (column: SortColumn) => void;
+}) {
+  const active = sort.column === column;
   return (
-    <div className="min-w-0 overflow-hidden rounded-md bg-white/[0.04] px-2 py-1.5">
-      <div className="text-[10px] leading-none tracking-wide text-white/40 uppercase">{label}</div>
-      <div className="mt-1 font-mono text-[13px] leading-tight tabular-nums break-all">{children}</div>
-    </div>
+    <button
+      type="button"
+      onClick={() => onSort(column)}
+      className={cn(
+        "shrink-0 rounded-full border px-2 py-0.5 text-[11px] leading-none",
+        active ? "border-sky-400/40 bg-sky-400/15 text-sky-100" : "border-white/10 text-white/50",
+      )}
+    >
+      {label}
+      {active ? (sort.dir === "asc" ? " ▲" : " ▼") : ""}
+    </button>
   );
 }
 
@@ -351,18 +369,18 @@ export function StockSummaryTable({
   }
 
   return (
-    <Card className="overflow-visible bg-[#10161d]">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
+    <Card className="gap-2 overflow-visible bg-[#10161d] md:gap-(--card-spacing)">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <div>
           <CardTitle className="text-base">
             {buyList ? "US buy list · all U.S. stocks" : "All stocks × models"}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="hidden md:block">
             {buyList
               ? scanMeta
-                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap a card for chart`
-                : "Full U.S. listed common-stock scan · Pass + BUY · tap a card for chart"
-              : "Each stock lists last, target, and expected on its own row · tap for chart"}
+                ? `${scanMeta.scanned.toLocaleString()}${scanMeta.total ? ` / ${scanMeta.total.toLocaleString()}` : ""} stocks scanned · ${scanMeta.passed.toLocaleString()} passed · ${scanMeta.buyCount} BUY · tap a row for chart`
+                : "Full U.S. listed common-stock scan · Pass + BUY · tap a row for chart"
+              : "Tap a row for chart · sort from the column headers"}
           </CardDescription>
         </div>
         <Button size="sm" onClick={onTradeAll} disabled={!tradable}>
@@ -378,7 +396,30 @@ export function StockSummaryTable({
           </p>
         ) : (
           <>
-            <div className="space-y-2 md:hidden">
+            <div className="-mx-1 mb-1.5 flex gap-1 overflow-x-auto px-1 pb-0.5 md:hidden [-webkit-overflow-scrolling:touch]">
+              {(
+                buyList
+                  ? ([
+                      ["Stock", "symbol"],
+                      ["Last", "last"],
+                      ["Target", "target"],
+                      ["Exp", "exp"],
+                      ["Hit", "hit"],
+                      ["Conf", "conf"],
+                    ] as const)
+                  : ([
+                      ["Stock", "symbol"],
+                      ["Last", "last"],
+                      ["Target", "target"],
+                      ["Exp", "exp"],
+                      ["Hit", "hit"],
+                      ["Signal", "signal"],
+                    ] as const)
+              ).map(([label, column]) => (
+                <SortChip key={column} label={label} column={column} sort={sort} onSort={toggleSort} />
+              ))}
+            </div>
+            <div className="divide-y divide-white/8 rounded-lg border border-white/10 md:hidden">
               {rows.map((q, index) => {
                 const isOpen = expanded === q.symbol;
                 const detail = detailQuotes[q.symbol] ?? q;
@@ -387,59 +428,46 @@ export function StockSummaryTable({
                 return (
                   <div
                     key={q.symbol}
-                    className={cn(
-                      "rounded-lg border border-white/10 bg-white/[0.03] p-3",
-                      (isOpen || q.symbol === active) && "border-sky-400/25 bg-white/[0.05]",
-                    )}
+                    className={cn("px-2 py-1.5", (isOpen || q.symbol === active) && "bg-white/[0.04]")}
                   >
                     <button
                       type="button"
-                      className="flex w-full items-start gap-2 text-left"
+                      className="grid w-full grid-cols-[1.1rem_minmax(0,1fr)_auto] items-center gap-x-1.5 text-left"
                       onClick={() => toggleRow(q.symbol)}
                       aria-expanded={isOpen}
                     >
-                      <span className="w-5 shrink-0 font-mono text-[11px] text-white/40">{index + 1}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
-                          <span className="text-white/35">{isOpen ? "▾" : "▸"}</span>
-                          <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
-                        </span>
+                      <span className="font-mono text-[10px] text-white/40">{index + 1}</span>
+                      <span className="flex min-w-0 items-center gap-1">
+                        <span className="text-[10px] text-white/35">{isOpen ? "▾" : "▸"}</span>
+                        <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                       </span>
-                      <span className={cn("shrink-0 rounded-full border px-1.5 py-0.5 text-[10px]", signalClass(q.signal))}>
+                      <span className={cn("rounded-full border px-1.5 py-px text-[9px]", signalClass(q.signal))}>
                         {q.signal}
                       </span>
                     </button>
-                    <div className="mt-2 grid grid-cols-3 gap-1.5">
-                      <Metric label="Last">
-                        <span className="block">{formatPrice(q.last)}</span>
-                        <span className={cn("block text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
-                      </Metric>
-                      <Metric label="Target">{formatPrice(q.targetPrice)}</Metric>
-                      <Metric label="Expected">
-                        <span className={clsxSign(q.expectedReturn)}>{formatPct(q.expectedReturn)}</span>
-                      </Metric>
-                      <Metric label="Hit">{(q.metrics.hitRate * 100).toFixed(0)}%</Metric>
-                      <Metric label="Backtest">
-                        <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
-                          {q.liveReady ? "Pass" : "Fail"}
-                        </span>
-                      </Metric>
-                      {buyList ? (
-                        <Metric label="Conf">{(q.confidence * 100).toFixed(0)}%</Metric>
-                      ) : (
-                        <Metric label="Sharpe">{q.backtest.sharpe.toFixed(2)}</Metric>
-                      )}
-                    </div>
-                    <div className="mt-2">
-                      <RowActions
-                        q={q}
-                        watchSet={watchSet}
-                        heldShares={heldShares}
-                        onAddSymbol={onAddSymbol}
-                        onRemoveSymbol={onRemoveSymbol}
-                        onBuy={() => setTradeEditor({ symbol: q.symbol, side: "BUY" })}
-                        onSell={() => setTradeEditor({ symbol: q.symbol, side: "SELL" })}
-                      />
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-5 font-mono text-[11px] tabular-nums">
+                      <span>
+                        {formatPrice(q.last)}
+                        <span className={cn("ml-0.5", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
+                      </span>
+                      <span className="text-white/25">·</span>
+                      <span>{formatPrice(q.targetPrice)}</span>
+                      <span className={cn(clsxSign(q.expectedReturn))}>{formatPct(q.expectedReturn)}</span>
+                      <span className="text-white/45">{(q.metrics.hitRate * 100).toFixed(0)}%</span>
+                      <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
+                        {q.liveReady ? "Pass" : "Fail"}
+                      </span>
+                      <span className="ml-auto">
+                        <RowActions
+                          q={q}
+                          watchSet={watchSet}
+                          heldShares={heldShares}
+                          onAddSymbol={onAddSymbol}
+                          onRemoveSymbol={onRemoveSymbol}
+                          onBuy={() => setTradeEditor({ symbol: q.symbol, side: "BUY" })}
+                          onSell={() => setTradeEditor({ symbol: q.symbol, side: "SELL" })}
+                        />
+                      </span>
                     </div>
                     {tradeEditor?.symbol === q.symbol ? (
                       <div className="mt-2">
