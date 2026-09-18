@@ -1,3 +1,4 @@
+/** Deploy nudge after PR #5 so Pages publishes verify + suggestion compare. */
 import type { DailyPick } from "@/lib/pick-score";
 import type { DailyScanRecord, ScanMeta } from "@/lib/scan-history";
 
