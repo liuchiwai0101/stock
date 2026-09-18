@@ -12,7 +12,7 @@ import { fetchQuoteBars, fetchRun, quoteWithHistory } from "@/lib/desk-fetch";
 import type { CompanyForecast, Horizon, ModelId, TradeSignal } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-/** Deploy nudge: compact mobile list + sort chips. */
+/** Deploy nudge after PR #25 so Pages rebuilds the compact phone list and sort chips. */
 
 const MODEL_COLUMNS: { id: ModelId; short: string }[] = [
   { id: "holt", short: "Holt" },
