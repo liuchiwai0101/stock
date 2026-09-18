@@ -10,8 +10,12 @@ import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import { selectTopPicks } from "@/lib/pick-score";
 import { clearPartialScan, fetchPublishedUsScan, loadBestPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
 import { getAccountSnapshot, pushGuestScan, pushUserData } from "@/lib/account-store";
+import { CAPTURE_TIMEZONE } from "@/lib/market-hours";
+import { appendDailyScan, loadScanHistory, todayCaptureKey } from "@/lib/scan-history";
+import { compareLatestScans } from "@/lib/suggestion-compare";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
+import { SuggestionComparePanel } from "@/components/suggestion-compare-panel";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -96,6 +100,8 @@ export function Dashboard() {
     for (const p of book.portfolio.positions) m[p.symbol] = p.shares;
     return m;
   }, [book.portfolio.positions]);
+  const [scanHistory, setScanHistory] = useState(() => loadScanHistory());
+  const suggestionCompare = useMemo(() => compareLatestScans(scanHistory), [scanHistory]);
   const chineseNames = useChineseNameCache();
   const quote = liveQuotes.find((q) => q.symbol === active) ?? liveQuotes[0] ?? null;
   const menuHits = useMemo(
@@ -267,6 +273,15 @@ export function Dashboard() {
             selectTopPicks(buys, 10),
             nextHorizon,
           );
+          appendDailyScan({
+            date: todayCaptureKey(),
+            horizon: nextHorizon,
+            capturedAt: json.generatedAt,
+            timezone: CAPTURE_TIMEZONE,
+            scanMeta: finalMeta,
+            topPicks: selectTopPicks(buys, 10),
+          });
+          setScanHistory(loadScanHistory());
           clearPartialScan();
           setRun(finalRun);
           setScanMeta(finalMeta);
@@ -786,6 +801,14 @@ export function Dashboard() {
 
               {error && viewMode === "buyList" ? (
                 <p className="text-xs text-amber-200/80">{error}</p>
+              ) : null}
+
+              {viewMode === "buyList" && suggestionCompare ? (
+                <Card className="bg-[#10161d]">
+                  <CardContent className="pt-5">
+                    <SuggestionComparePanel compare={suggestionCompare} compact />
+                  </CardContent>
+                </Card>
               ) : null}
 
               <StockSummaryTable
