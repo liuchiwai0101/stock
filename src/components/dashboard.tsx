@@ -499,7 +499,7 @@ export function Dashboard() {
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-4 px-4 py-4 sm:gap-6 sm:px-6 sm:py-6">
+      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6">
         {/* Sticky only from sm up — on phones the tall chrome was locking the viewport. */}
         <section className="space-y-2 border-b border-white/6 bg-[#0b1016] pb-3 sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:space-y-3 sm:bg-[#0b1016]/95 sm:px-6 sm:py-3 sm:backdrop-blur-xl">
           <div className="hidden flex-wrap items-center justify-between gap-2 sm:flex">
@@ -771,12 +771,12 @@ export function Dashboard() {
 
         {run ? (
           <>
-            <section className="space-y-3">
+            <section className="space-y-2 sm:space-y-3">
               <div className="space-y-2">
-                <h2 className="text-lg font-semibold tracking-tight">
+                <h2 className="hidden text-lg font-semibold tracking-tight sm:block">
                   {viewMode === "buyList" ? "Suggested buys" : "Suggestions"}
                 </h2>
-                <p className="text-sm text-white/45">
+                <p className="hidden text-sm text-white/45 sm:block">
                   {viewMode === "buyList"
                     ? `Saved U.S. listed scan · ${run.horizon}d horizon · last prices from Yahoo (Stooq fallback)`
                     : "Stocks with per-model suggestions — last prices refresh from Yahoo."}
@@ -787,13 +787,13 @@ export function Dashboard() {
                       : ""}
                 </p>
                 {viewMode === "buyList" && scanMeta ? (
-                  <div className="flex flex-wrap gap-2 pt-1">
+                  <div className="flex gap-1.5 sm:flex-wrap sm:gap-2 sm:pt-1">
                     <ScanStat
                       label="Scanned"
                       value={scanMeta.scanned}
                       detail={scanMeta.total ? `of ${scanMeta.total.toLocaleString()}` : undefined}
                     />
-                    <ScanStat label="Passed 1-year backtest" value={scanMeta.passed} />
+                    <ScanStat label="Passed 1y BT" value={scanMeta.passed} />
                     <ScanStat label="BUY" value={scanMeta.buyCount} highlight />
                   </div>
                 ) : null}
@@ -885,16 +885,16 @@ function ScanStat({
   return (
     <div
       className={cn(
-        "rounded-lg border px-3 py-2",
+        "min-w-0 flex-1 rounded-md border px-2 py-1 sm:rounded-lg sm:px-3 sm:py-2",
         highlight
           ? "border-emerald-500/25 bg-emerald-500/10"
           : "border-white/10 bg-white/3",
       )}
     >
-      <div className="text-[10px] tracking-wide text-white/45 uppercase">{label}</div>
+      <div className="text-[9px] tracking-wide text-white/45 uppercase sm:text-[10px]">{label}</div>
       <div
         className={cn(
-          "font-mono text-lg font-semibold",
+          "font-mono text-sm font-semibold sm:text-lg",
           highlight ? "text-emerald-300" : "text-white/90",
         )}
       >
