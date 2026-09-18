@@ -14,6 +14,12 @@ export function canonicalizeTicker(symbol: string): string {
   return t;
 }
 
+/** Native/IME field value → ticker. Ignores React state lag on iOS composition. */
+export function tickerFromAddField(raw: string | FormDataEntryValue | null | undefined): string {
+  if (raw == null) return "";
+  return canonicalizeTicker(String(raw).replace(/\s+/g, ""));
+}
+
 export type TickerSearchHit = { symbol: string; name: string; type: string };
 
 /** Always keep the typed ticker first so Add works even when Yahoo search is blocked. */

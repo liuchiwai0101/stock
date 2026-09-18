@@ -26,7 +26,8 @@ import { usePriceMarks } from "@/hooks/use-price-marks";
 import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
-import { canonicalizeTicker, mergeTickerSearchHits } from "@/lib/ticker";
+import { canonicalizeTicker, mergeTickerSearchHits, tickerFromAddField } from "@/lib/ticker";
+import { MAX_WATCHLIST_SYMBOLS } from "@/lib/vin-watchlist";
 import { UNIVERSE, companyName } from "@/lib/universe";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,7 @@ export function Dashboard() {
     buyCount: number;
   } | null>(null);
   const searchRef = useRef<HTMLFormElement>(null);
+  const tickerInputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
   const busy = runLoading || scanLoading;
 
@@ -364,9 +366,14 @@ export function Dashboard() {
     const q = query.trim();
     if (!q) return;
     const t = window.setTimeout(async () => {
-      const results = await fetchSearch(q);
-      setHits(results);
-      setSearchOpen(true);
+      try {
+        const results = await fetchSearch(q);
+        setHits(results);
+        setSearchOpen(true);
+      } catch {
+        setHits([]);
+        setSearchOpen(true);
+      }
     }, 220);
     return () => window.clearTimeout(t);
   }, [query]);
@@ -385,13 +392,14 @@ export function Dashboard() {
     setViewMode("watch");
     setSymbols((prev) => {
       if (prev.includes(next)) return prev;
-      if (prev.length >= 20) return [...prev.slice(1), next];
+      if (prev.length >= MAX_WATCHLIST_SYMBOLS) return [...prev.slice(1), next];
       return [...prev, next];
     });
     setActive(next);
     setQuery("");
     setHits([]);
     setSearchOpen(false);
+    if (tickerInputRef.current) tickerInputRef.current.value = "";
   }
 
   function removeSymbol(symbol: string) {
@@ -492,7 +500,7 @@ export function Dashboard() {
               {book.portfolio.fills.length === 1 ? "" : "s"} →
             </Link>
           </div>
-          {/* Deploy nudge after PR #21 so Pages/Docker pick up the mobile search/table fix. */}
+          {/* Deploy nudge: iOS add-ticker reads the native field, not React IME state. */}
           <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
             <form
               ref={searchRef}
@@ -501,34 +509,49 @@ export function Dashboard() {
               action="#"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (query.trim()) addSymbol(query.trim());
+                const native =
+                  tickerInputRef.current?.value ??
+                  String(new FormData(e.currentTarget).get("sd-watchlist-ticker") ?? "");
+                const next = tickerFromAddField(native || query);
+                if (!next) {
+                  tickerInputRef.current?.focus();
+                  return;
+                }
+                addSymbol(next);
               }}
             >
               <div className="relative min-w-0 flex-1">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-white/35" />
                 <Input
-                  type="search"
-                  name="stock-ticker"
-                  inputMode="search"
-                  enterKeyHint="done"
+                  ref={tickerInputRef}
+                  type="text"
+                  name="sd-watchlist-ticker"
+                  inputMode="text"
+                  enterKeyHint="go"
                   autoComplete="off"
                   autoCorrect="off"
-                  autoCapitalize="characters"
+                  autoCapitalize="off"
                   spellCheck={false}
+                  lang="en"
                   data-1p-ignore="true"
                   data-lpignore="true"
                   data-form-type="other"
-                  value={query}
+                  defaultValue=""
                   onChange={(e) => {
-                    setQuery(e.target.value);
+                    setQuery(e.currentTarget.value);
+                    setSearchOpen(true);
+                  }}
+                  onCompositionEnd={(e) => {
+                    setQuery(e.currentTarget.value);
                     setSearchOpen(true);
                   }}
                   onFocus={() => setSearchOpen(true)}
                   placeholder="Add ticker…"
+                  aria-label="Add ticker"
                   className="h-10 bg-white/3 pl-8"
                 />
                 {searchOpen && menuHits.length > 0 ? (
-                  <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-lg border border-white/10 bg-[#121820] shadow-2xl">
+                  <div className="absolute z-40 mt-1 max-h-[40vh] w-full overflow-y-auto rounded-lg border border-white/10 bg-[#121820] shadow-2xl">
                     {menuHits.map((hit) => (
                       <button
                         key={hit.symbol}
@@ -548,12 +571,7 @@ export function Dashboard() {
                   </div>
                 ) : null}
               </div>
-              <Button
-                type="submit"
-                size="sm"
-                className="h-10 shrink-0 px-3"
-                disabled={!query.trim()}
-              >
+              <Button type="submit" size="sm" className="h-10 shrink-0 px-3">
                 Add
               </Button>
             </form>
