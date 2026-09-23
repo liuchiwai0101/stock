@@ -1,5 +1,7 @@
-import { TradeRecordsPage } from "@/components/trade-records-page";
+"use client";
 
-export default function TradesPage() {
-  return <TradeRecordsPage />;
+import { ClientRedirect } from "@/components/client-redirect";
+
+export default function TradesRedirect() {
+  return <ClientRedirect href="/auto" />;
 }

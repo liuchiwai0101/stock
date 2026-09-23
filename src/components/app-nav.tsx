@@ -2,17 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, ClipboardList, FlaskConical, LineChart, Radar, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, Radar, Bot } from "lucide-react";
 import { AccountMenu } from "@/components/account-menu";
 import { cn } from "@/lib/utils";
 
 const LINKS = [
-  { href: "/", label: "Desk", icon: Activity },
-  { href: "/monitor", label: "Monitor", icon: Radar },
-  { href: "/learn", label: "Learn", icon: FlaskConical },
-  { href: "/verify", label: "Verify", icon: ShieldCheck },
-  { href: "/pnl", label: "P&L", icon: LineChart },
-  { href: "/trades", label: "Trades", icon: ClipboardList },
+  { href: "/", label: "Holdings", icon: BriefcaseBusiness },
+  { href: "/scan", label: "US Scan", icon: Radar },
+  { href: "/auto", label: "Auto Trade", icon: Bot },
 ] as const;
 
 /** Fixed top chrome: brand left; primary menu + Account padded to the right. */
@@ -24,12 +21,12 @@ export function AppNav({ subtitle }: { subtitle?: string }) {
       <div className="mx-auto flex h-full w-full max-w-[1100px] items-center gap-2 px-3 sm:gap-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/25 sm:size-8">
-            <Activity className="size-3.5" />
+            <BriefcaseBusiness className="size-3.5" />
           </div>
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold leading-tight tracking-tight">Signal Desk</div>
             <div className="hidden truncate text-[11px] leading-tight text-white/45 sm:block">
-              {subtitle ?? "Paper forecasts"}
+              {subtitle ?? "Holdings · US scan · paper auto trade"}
             </div>
           </div>
         </div>

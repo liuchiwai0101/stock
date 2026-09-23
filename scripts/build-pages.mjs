@@ -23,6 +23,8 @@ const ROOT_ENTRIES = [
   "learn",
   "pnl",
   "verify",
+  "scan",
+  "auto",
   "_not-found",
   "404",
 ];

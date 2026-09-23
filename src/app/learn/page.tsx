@@ -1,5 +1,7 @@
-import { LearnPage } from "@/components/learn-page";
+"use client";
 
-export default function LearnRoute() {
-  return <LearnPage />;
+import { ClientRedirect } from "@/components/client-redirect";
+
+export default function LearnRedirect() {
+  return <ClientRedirect href="/scan" />;
 }

@@ -16,6 +16,7 @@ import { compareLatestScans } from "@/lib/suggestion-compare";
 import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { SuggestionComparePanel } from "@/components/suggestion-compare-panel";
+import { ScanReviewPanel } from "@/components/scan-review-panel";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +46,9 @@ const HORIZONS: { value: Horizon; label: string }[] = [
 
 type SearchHit = { symbol: string; name: string; type: string };
 
-export function Dashboard() {
+export type DeskPage = "holdings" | "scan";
+
+export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
   const defaults = defaultSelection();
   const [symbols, setSymbols] = useState<string[]>(defaults.symbols);
   const [active, setActive] = useState<string>(defaults.active);
@@ -59,7 +62,7 @@ export function Dashboard() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"watch" | "buyList">("buyList");
+  const [viewMode, setViewMode] = useState<"watch" | "buyList">(page === "scan" ? "buyList" : "watch");
   const [scanMeta, setScanMeta] = useState<{
     scanned: number;
     total: number;
@@ -334,12 +337,13 @@ export function Dashboard() {
   useEffect(() => {
     ensureVinWatchlistSeeded();
     const saved = loadSelection();
+    const preferredMode: "watch" | "buyList" = page === "scan" ? "buyList" : "watch";
     void loadBestPreviewScan().then((cachedScan) => {
       setSymbols(saved.symbols);
       setActive(saved.active);
       setHorizon(saved.horizon);
-      setViewMode(saved.viewMode);
-      if (saved.viewMode === "buyList" && cachedScan) {
+      setViewMode(preferredMode);
+      if (preferredMode === "buyList" && cachedScan) {
         setRun({
           horizon: cachedScan.horizon,
           generatedAt: cachedScan.generatedAt,
@@ -356,7 +360,7 @@ export function Dashboard() {
       }
       setSelectionReady(true);
     });
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (!selectionReady) return;
@@ -493,9 +497,13 @@ export function Dashboard() {
     <div className="flex min-h-full flex-col">
       <AppNav
         subtitle={
-          run
-            ? `Paper forecasts · ${readyCount}/${run.quotes.length} trade-ready · selection saved`
-            : "Paper forecasts · selection saved in this browser"
+          page === "scan"
+            ? run
+              ? `US scan · ${scanMeta?.buyCount ?? run.quotes.length} BUY · saved daily for review`
+              : "US scan · rank model results · save each day"
+            : run
+              ? `Holdings · ${readyCount}/${run.quotes.length} trade-ready · model list for decisions`
+              : "Holdings · your stocks + model analysis"
         }
       />
 
@@ -504,19 +512,23 @@ export function Dashboard() {
         <section className="space-y-2 border-b border-white/6 bg-[#0b1016] pb-3 sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:space-y-3 sm:bg-[#0b1016]/95 sm:px-6 sm:py-3 sm:backdrop-blur-xl">
           <div className="hidden flex-wrap items-center justify-between gap-2 sm:flex">
             <p className="text-xs text-white/40">
-              Tickers stay saved to your account or this browser. Full trade list lives on{" "}
-              <Link href="/trades" className="text-sky-300 hover:underline">
-                Trade records
+              {page === "scan"
+                ? "Scan results refresh and save each day so you can check whether model calls matched price moves."
+                : "Your watchlist and open positions with all-model analysis attached for decisions."}{" "}
+              Paper fills live on{" "}
+              <Link href="/auto" className="text-sky-300 hover:underline">
+                Auto Trade
               </Link>
               .
             </p>
-            <Link href="/trades" className="text-xs text-sky-300/90 hover:underline">
+            <Link href="/auto" className="text-xs text-sky-300/90 hover:underline">
               {book.portfolio.fills.length} trade record
               {book.portfolio.fills.length === 1 ? "" : "s"} →
             </Link>
           </div>
           {/* Deploy nudge after PR #23 so Pages rebuilds the iPhone Safari ticker-add fix. */}
           <div className="flex flex-col gap-2 sm:gap-3 lg:flex-row lg:items-center">
+            {page === "holdings" ? (
             <form
               ref={searchRef}
               className="relative flex min-w-0 flex-1 gap-1.5"
@@ -590,68 +602,15 @@ export function Dashboard() {
                 Add
               </Button>
             </form>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <div className="inline-flex shrink-0 rounded-lg border border-white/10 bg-white/3 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Cancel in-flight scan/load so the chrome stays usable and view switches immediately.
-                    requestSeq.current += 1;
-                    setRunLoading(false);
-                    setScanLoading(false);
-                    setError(null);
-                    setScanNotice(null);
-                    setViewMode("watch");
-                  }}
-                  className={cn(
-                    "rounded-md px-2.5 py-1.5 text-xs transition",
-                    viewMode === "watch"
-                      ? "bg-sky-400/15 text-sky-100"
-                      : "text-white/55 hover:bg-white/5 hover:text-white/85",
-                  )}
-                >
-                  Watchlist
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    requestSeq.current += 1;
-                    setRunLoading(false);
-                    setScanLoading(false);
-                    setError(null);
-                    setScanNotice(null);
-                    setViewMode("buyList");
-                    void loadBestPreviewScan().then((cached) => {
-                      if (cached) {
-                        setRun({
-                          horizon: cached.horizon,
-                          generatedAt: cached.generatedAt,
-                          verification: null,
-                          quotes: cached.quotes,
-                          errors: [],
-                        });
-                        setScanMeta(cached.scanMeta);
-                        setActive((prev) =>
-                          cached.quotes.some((q) => q.symbol === prev)
-                            ? prev
-                            : (cached.quotes[0]?.symbol ?? prev),
-                        );
-                      } else {
-                        setRun(null);
-                        setScanMeta(null);
-                      }
-                    });
-                  }}
-                  className={cn(
-                    "rounded-md px-2.5 py-1.5 text-xs transition",
-                    viewMode === "buyList"
-                      ? "bg-sky-400/15 text-sky-100"
-                      : "text-white/55 hover:bg-white/5 hover:text-white/85",
-                  )}
-                >
-                  US buys
-                </button>
+            ) : (
+              <div className="min-w-0 flex-1">
+                <h1 className="text-base font-semibold tracking-tight sm:text-lg">US Scan</h1>
+                <p className="text-xs text-white/45 sm:text-sm">
+                  Rank by model results · refresh daily or manually · review prediction accuracy
+                </p>
               </div>
+            )}
+            <div className="flex flex-wrap items-center gap-1.5">
               {HORIZONS.map((h) => (
                 <Button
                   key={h.value}
@@ -662,21 +621,25 @@ export function Dashboard() {
                   {h.label}
                 </Button>
               ))}
-              <Button size="sm" variant="secondary" onClick={() => void load(symbols, horizon)} disabled={runLoading}>
-                {runLoading ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
-                Run
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void scanBuyList(horizon)}
-                disabled={scanLoading}
-              >
-                {scanLoading ? <LoaderCircle className="animate-spin" /> : <Radar />}
-                Scan full US
-              </Button>
+              {page === "holdings" ? (
+                <Button size="sm" variant="secondary" onClick={() => void load(symbols, horizon)} disabled={runLoading}>
+                  {runLoading ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+                  Analyze
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => void scanBuyList(horizon)}
+                  disabled={scanLoading}
+                >
+                  {scanLoading ? <LoaderCircle className="animate-spin" /> : <Radar />}
+                  Scan full US
+                </Button>
+              )}
             </div>
           </div>
+          {page === "holdings" ? (
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 [-webkit-overflow-scrolling:touch] sm:flex-wrap sm:overflow-visible">
             {symbols.map((symbol) => (
               <button
@@ -725,6 +688,7 @@ export function Dashboard() {
                 </button>
               ))}
           </div>
+          ) : null}
         </section>
 
         {book.message && (
@@ -774,12 +738,12 @@ export function Dashboard() {
             <section className="space-y-2 sm:space-y-3">
               <div className="space-y-2">
                 <h2 className="hidden text-lg font-semibold tracking-tight sm:block">
-                  {viewMode === "buyList" ? "Suggested buys" : "Suggestions"}
+                  {page === "scan" ? "US scan results" : "Holdings analysis"}
                 </h2>
                 <p className="hidden text-sm text-white/45 sm:block">
-                  {viewMode === "buyList"
-                    ? `Saved U.S. listed scan · ${run.horizon}d horizon · last prices from Yahoo (Stooq fallback)`
-                    : "Stocks with per-model suggestions — last prices refresh from Yahoo."}
+                  {page === "scan"
+                    ? `Saved U.S. listed scan · ${run.horizon}d horizon · sort by model columns · last prices from Yahoo`
+                    : "Your stocks with per-model suggestions — last prices refresh from Yahoo."}
                   {livePrices.updatedAt
                     ? ` · refreshed ${new Date(livePrices.updatedAt).toLocaleString()}`
                     : livePrices.loading
@@ -831,6 +795,8 @@ export function Dashboard() {
               />
             </section>
 
+            {page === "scan" ? <ScanReviewPanel /> : null}
+
             {quote ? (
               <section className="space-y-3">
                 <div>
@@ -862,6 +828,8 @@ export function Dashboard() {
             </CardHeader>
           </Card>
         ) : null}
+
+        {page === "scan" && !run ? <ScanReviewPanel /> : null}
 
         <p className="pb-4 text-center text-[11px] text-white/35">
           Educational paper trading only — not investment advice.
