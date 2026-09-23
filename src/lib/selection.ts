@@ -6,10 +6,13 @@ import { MAX_WATCHLIST_SYMBOLS, vinDefaultSelection } from "@/lib/vin-watchlist"
 
 const STORAGE_BASE = "signal-desk-selection-v1";
 
+export type DeskView = "watch" | "buyList";
+
 export type SavedSelection = {
   symbols: string[];
   active: string;
   horizon: Horizon;
+  viewMode: DeskView;
 };
 
 const HORIZONS: Horizon[] = [5, 10, 21, 63];
@@ -17,12 +20,13 @@ const HORIZONS: Horizon[] = [5, 10, 21, 63];
 export function defaultSelection(): SavedSelection {
   const user = typeof window !== "undefined" ? currentUser() : null;
   if (user?.username === "Vin") {
-    return vinDefaultSelection();
+    return { ...vinDefaultSelection(), viewMode: "buyList" };
   }
   return {
     symbols: [...DEFAULT_SYMBOLS],
     active: DEFAULT_SYMBOLS[0],
     horizon: 21,
+    viewMode: "buyList",
   };
 }
 
@@ -56,7 +60,8 @@ export function loadSelection(): SavedSelection {
     const horizon = HORIZONS.includes(parsed.horizon as Horizon)
       ? (parsed.horizon as Horizon)
       : 21;
-    return { symbols: list, active, horizon };
+    const viewMode: DeskView = parsed.viewMode === "watch" ? "watch" : "buyList";
+    return { symbols: list, active, horizon, viewMode };
   } catch {
     return defaultSelection();
   }
@@ -68,6 +73,7 @@ export function saveSelection(selection: SavedSelection) {
     symbols: selection.symbols.slice(0, MAX_WATCHLIST_SYMBOLS),
     active: selection.active,
     horizon: selection.horizon,
+    viewMode: selection.viewMode === "watch" ? "watch" : "buyList",
   };
   window.localStorage.setItem(storageKey(), JSON.stringify(payload));
 }
@@ -85,6 +91,7 @@ export function addSymbolsToWatchlist(symbols: string[]): SavedSelection {
     symbols: merged,
     active: merged.includes(current.active) ? current.active : (merged[0] ?? current.active),
     horizon: current.horizon,
+    viewMode: current.viewMode,
   };
   saveSelection(next);
   return next;
@@ -97,7 +104,7 @@ export function ensureVinWatchlistSeeded(): SavedSelection | null {
   const seeded = vinDefaultSelection();
   const existingRaw = window.localStorage.getItem(storageKey());
   if (!existingRaw) {
-    saveSelection(seeded);
+    saveSelection({ ...seeded, viewMode: "buyList" });
     return seeded;
   }
   // Always ensure Futu US names are on Vin's list (additive).

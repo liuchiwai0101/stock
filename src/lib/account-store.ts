@@ -96,16 +96,21 @@ export async function pullUserData() {
     const res = await fetch("/api/account/data", { cache: "no-store" });
     if (!res.ok) return;
     const json = (await res.json()) as {
-      selection?: { symbols: string[]; active: string; horizon: number };
+      selection?: { symbols: string[]; active: string; horizon: number; viewMode?: "watch" | "buyList" };
       scan?: unknown;
       scanHistory?: unknown;
     };
     if (json.selection) {
-      const { saveSelection } = await import("@/lib/selection");
+      const { loadSelection, saveSelection } = await import("@/lib/selection");
+      const local = loadSelection();
       saveSelection({
         symbols: json.selection.symbols,
         active: json.selection.active,
         horizon: json.selection.horizon as 5 | 10 | 21 | 63,
+        viewMode:
+          json.selection.viewMode === "watch" || json.selection.viewMode === "buyList"
+            ? json.selection.viewMode
+            : local.viewMode,
       });
     }
     if (json.scan) {
