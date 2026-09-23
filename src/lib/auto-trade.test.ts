@@ -24,20 +24,30 @@ function quote(partial: Partial<CompanyForecast> & { symbol: string }): CompanyF
     liveReady: partial.liveReady ?? true,
     metrics: {
       hitRate: partial.metrics?.hitRate ?? 0.55,
-      mae: 0,
-      rmse: 0,
-      directionAccuracy: 0.55,
+      mape: partial.metrics?.mape ?? 0,
+      rmse: partial.metrics?.rmse ?? 0,
+      residualVol: partial.metrics?.residualVol ?? 0.1,
     },
     weights: {} as CompanyForecast["weights"],
     models: [],
     backtest: {
+      periodDays: 252,
+      horizon: 21,
       trades: 1,
-      returnPct: 0.1,
+      winRate: 0.55,
+      hitRate: 0.55,
+      totalReturn: 0.1,
       benchmarkReturn: 0.05,
       sharpe: 0.5,
       maxDrawdown: 0.1,
       passed: true,
-      checks: {} as CompanyForecast["backtest"]["checks"],
+      checks: {
+        hitRate: true,
+        sharpe: true,
+        drawdown: true,
+        trades: true,
+        direction: true,
+      },
       gates: {
         minHitRate: 0.48,
         minSharpe: 0.1,
@@ -83,7 +93,13 @@ describe("planAutoTrades", () => {
 
   it("plans buys from a fresh scan", () => {
     const plan = planAutoTrades({
-      quotes: [quote({ symbol: "AAPL", expectedReturn: 0.08, metrics: { hitRate: 0.6, mae: 0, rmse: 0, directionAccuracy: 0.6 } })],
+      quotes: [
+        quote({
+          symbol: "AAPL",
+          expectedReturn: 0.08,
+          metrics: { hitRate: 0.6, mape: 0, rmse: 0, residualVol: 0.1 },
+        }),
+      ],
       scanGeneratedAt: "2026-09-23T02:00:00.000Z",
       portfolio: emptyBook,
       settings: { ...DEFAULT_AUTO_TRADE_SETTINGS, enabled: true },
