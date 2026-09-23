@@ -5,7 +5,7 @@ import Link from "next/link";
 import { LoaderCircle, Radar, Search, Sparkles, X } from "lucide-react";
 import { AppNav } from "@/components/app-nav";
 import { displayStockName } from "@/lib/chinese-names";
-import { ensureChineseNames } from "@/lib/chinese-names-store";
+import { ensureChineseNames, mergeChineseNames } from "@/lib/chinese-names-store";
 import { appendPredictionsFromPicks } from "@/lib/prediction-log";
 import { selectTopPicks } from "@/lib/pick-score";
 import { clearPartialScan, fetchPublishedUsScan, loadBestPreviewScan, savePartialScan, saveSavedScan } from "@/lib/scan-cache";
@@ -32,8 +32,7 @@ import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelectio
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { canonicalizeTicker, mergeTickerSearchHits, tickerFromAddField } from "@/lib/ticker";
-import { isLikelyTicker, resolveTradableSymbol } from "@/lib/ticker-search";
-import { mergeChineseNames } from "@/lib/chinese-names-store";
+import { isLikelyTicker, resolveTradableSymbol, resolveWatchlistSymbols } from "@/lib/ticker-search";
 import { MAX_WATCHLIST_SYMBOLS } from "@/lib/vin-watchlist";
 import { UNIVERSE, companyName } from "@/lib/universe";
 import { cn } from "@/lib/utils";
