@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 const api = "src/app/api";
@@ -69,6 +69,9 @@ try {
     PAGES_BASE_PATH: process.env.PAGES_BASE_PATH || "/stock",
   });
   writeFileSync("out/.nojekyll", "");
+  if (existsSync("data/asia-symbols.json")) {
+    cpSync("data/asia-symbols.json", "out/data/asia-symbols.json");
+  }
   publishDir("out", "docs");
   publishToRepoRoot("out");
 } finally {
