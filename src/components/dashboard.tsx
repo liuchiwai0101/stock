@@ -32,6 +32,7 @@ import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelectio
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { canonicalizeTicker, mergeTickerSearchHits, tickerFromAddField } from "@/lib/ticker";
+import { isLikelyTicker } from "@/lib/ticker-search";
 import { MAX_WATCHLIST_SYMBOLS } from "@/lib/vin-watchlist";
 import { UNIVERSE, companyName } from "@/lib/universe";
 import { cn } from "@/lib/utils";
@@ -107,10 +108,11 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
   const suggestionCompare = useMemo(() => compareLatestScans(scanHistory), [scanHistory]);
   const chineseNames = useChineseNameCache();
   const quote = liveQuotes.find((q) => q.symbol === active) ?? liveQuotes[0] ?? null;
-  const menuHits = useMemo(
-    () => (query.trim() ? mergeTickerSearchHits(query, hits, (s) => companyName(s)) : []),
-    [query, hits],
-  );
+  const menuHits = useMemo(() => {
+    if (!query.trim()) return [];
+    if (isLikelyTicker(query)) return mergeTickerSearchHits(query, hits, (s) => companyName(s));
+    return hits.slice(0, 12);
+  }, [query, hits]);
 
   useEffect(() => {
     const tickers = [
@@ -540,11 +542,18 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
                   tickerInputRef.current?.value ??
                   String(new FormData(e.currentTarget).get("sd-watchlist-ticker") ?? "");
                 const next = tickerFromAddField(native || query);
-                if (!next) {
-                  tickerInputRef.current?.focus();
+                if (isLikelyTicker(next)) {
+                  addSymbol(next);
                   return;
                 }
-                addSymbol(next);
+                const exact = menuHits.find(
+                  (hit) => hit.name.replace(/\s+/g, "") === (native || query).replace(/\s+/g, "") || hit.symbol === next,
+                );
+                if (exact) {
+                  addSymbol(exact.symbol);
+                  return;
+                }
+                tickerInputRef.current?.focus();
               }}
             >
               <div className="relative min-w-0 flex-1">
@@ -573,8 +582,8 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
                     setSearchOpen(true);
                   }}
                   onFocus={() => setSearchOpen(true)}
-                  placeholder="Add ticker…"
-                  aria-label="Add ticker"
+                  placeholder="搜索港股 / A股 / 美股"
+                  aria-label="搜索并添加港股、A股或美股"
                   className="h-10 bg-white/3 pl-8"
                 />
                 {searchOpen && menuHits.length > 0 ? (
@@ -592,6 +601,7 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
                             {displayStockName(hit.symbol, hit.name, chineseNames)}
                           </span>
                         </span>
+                        <span className="shrink-0 text-[11px] text-white/35">{hit.type === "EQUITY" ? "美股" : hit.type}</span>
                         <span className="shrink-0 text-[11px] text-sky-300">Add</span>
                       </button>
                     ))}

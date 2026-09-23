@@ -4,9 +4,10 @@ import { loadPolicy } from "@/lib/policy-store";
 import { mapPool } from "@/lib/scan-pool";
 import { defaultPolicy } from "@/lib/adaptive-policy";
 import { STATIC_DESK } from "@/lib/static-mode";
-import { canonicalizeTicker } from "@/lib/ticker";
+import { canonicalizeTicker, mergeTickerSearchHits } from "@/lib/ticker";
+import { isLikelyTicker, marketLabel, marketOfSymbol, searchTradableMarkets } from "@/lib/ticker-search";
 import type { CompanyForecast, DataSource, Horizon, RunResponse } from "@/lib/types";
-import { UNIVERSE } from "@/lib/universe";
+import { companyName } from "@/lib/universe";
 import { usEquitySymbols } from "@/lib/us-universe";
 import { getVerificationSummary } from "@/lib/verification-cache";
 
@@ -168,10 +169,32 @@ export async function scanBuyBatch(
 
 export async function searchDesk(query: string): Promise<SearchHit[]> {
   const q = query.trim();
-  if (!q) {
-    return UNIVERSE.slice(0, 8).map((c) => ({ symbol: c.symbol, name: c.name, type: "EQUITY" }));
+  if (!q) return [];
+  const local = await searchTradableMarkets(q);
+  let remote: SearchHit[] = [];
+  try {
+    remote = await searchTickers(q);
+  } catch {
+    remote = [];
   }
-  return searchTickers(q);
+  const seen = new Set(local.map((hit) => hit.symbol));
+  const extra = remote
+    .filter((hit) => isLikelyTicker(hit.symbol) && !seen.has(canonicalizeTicker(hit.symbol)))
+    .map((hit) => {
+      const symbol = canonicalizeTicker(hit.symbol);
+      const market = marketOfSymbol(symbol);
+      return { symbol, name: hit.name, type: marketLabel(market) };
+    });
+  const hits = [
+    ...local.map((hit) => ({
+      ...hit,
+      type: hit.type === "HK" || hit.type === "CN" || hit.type === "US" ? marketLabel(hit.type) : hit.type,
+    })),
+    ...extra,
+  ].slice(0, 12);
+  if (hits.length > 0) return hits;
+  if (!isLikelyTicker(q)) return [];
+  return mergeTickerSearchHits(q, [], companyName);
 }
 
 export async function loadMarks(symbols: string[]): Promise<{ quotes: QuoteMark[]; errors: { symbol: string; message: string }[] }> {
