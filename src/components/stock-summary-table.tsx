@@ -42,17 +42,17 @@ type SortColumn =
 type SortDir = "asc" | "desc";
 
 const RANK_COL = "w-8 min-w-8 max-w-8";
-const STOCK_COL_WATCH = "w-[11rem] min-w-[11rem] max-w-[11rem] sm:w-[14rem] sm:min-w-[14rem] sm:max-w-[14rem]";
-const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min-w-[12rem] sm:max-w-[12rem]";
+const STOCK_COL_WATCH = "w-[22%] max-w-[22%]";
+const STOCK_COL_BUY = "w-[16%] max-w-[16%]";
 /* Keep below sticky desk chrome (z-20) so mobile scroll doesn’t feel locked. */
 /* Deploy nudge after PR #13. */
 const STICKY_RANK = "sticky left-0 z-[5]";
 const STICKY_STOCK = "sticky left-8 z-[5]";
 /** Deploy nudge after PR #28 so Pages rebuilds compact table rows. */
-const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
-const NUM_COL = "min-w-[4.5rem] whitespace-nowrap";
-const TAG_COL = "min-w-[3.75rem] whitespace-nowrap";
-const ACTION_COL = "w-[11.5rem] min-w-[11.5rem] whitespace-nowrap";
+const PRICE_COL = "whitespace-nowrap";
+const NUM_COL = "whitespace-nowrap";
+const TAG_COL = "whitespace-nowrap";
+const ACTION_COL = "w-[8.75rem] whitespace-nowrap";
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
@@ -241,7 +241,7 @@ function SortHeader({
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "inline-flex items-center gap-0.5 whitespace-nowrap text-left text-[10px] leading-none transition hover:text-white/75",
+          "inline-flex max-w-full items-start gap-0.5 whitespace-normal text-left text-[10px] leading-tight transition hover:text-white/75",
           active ? "text-sky-200" : "text-white/40",
         )}
       >
@@ -541,20 +541,20 @@ export function StockSummaryTable({
               })}
             </div>
 
-            <div className="hidden max-w-full overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] md:block">
-            <table className="w-max min-w-full text-left text-sm">
+            <div className="hidden max-w-full overflow-x-hidden md:block">
+            <table className="w-full table-fixed text-left text-sm">
             <colgroup>
-              <col className="w-8" />
-              <col className={buyList ? "w-[12rem]" : "w-[14rem]"} />
-              <col />
-              <col />
-              <col />
-              <col />
-              {buyList ? <col /> : null}
-              {buyList ? <col /> : null}
-              <col />
-              <col />
-              <col className="w-[7rem]" />
+              <col className="w-[2.25rem]" />
+              <col className={buyList ? "w-[16%]" : "w-[22%]"} />
+              <col className={buyList ? "w-[10%]" : "w-[12%]"} />
+              <col className={buyList ? "w-[9%]" : "w-[11%]"} />
+              <col className={buyList ? "w-[9%]" : "w-[11%]"} />
+              <col className={buyList ? "w-[7%]" : "w-[8%]"} />
+              {buyList ? <col className="w-[8%]" /> : null}
+              {buyList ? <col className="w-[8%]" /> : null}
+              <col className={buyList ? "w-[7%]" : "w-[8%]"} />
+              <col className={buyList ? "w-[7%]" : "w-[8%]"} />
+              <col className="w-[8.75rem]" />
             </colgroup>
             <thead className="text-[10px] font-medium tracking-normal">
               <tr className="border-b border-white/8">

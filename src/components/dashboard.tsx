@@ -507,7 +507,7 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
         }
       />
 
-      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6">
+      <main className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-3 px-3 py-3 sm:gap-6 sm:px-6 sm:py-6">
         {/* Sticky only from sm up — on phones the tall chrome was locking the viewport. */}
         <section className="space-y-2 border-b border-white/6 bg-[#0b1016] pb-3 sm:sticky sm:top-14 sm:z-20 sm:-mx-6 sm:space-y-3 sm:bg-[#0b1016]/95 sm:px-6 sm:py-3 sm:backdrop-blur-xl">
           <div className="hidden flex-wrap items-center justify-between gap-2 sm:flex">
