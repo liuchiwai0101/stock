@@ -52,7 +52,7 @@ const STICKY_STOCK = "sticky left-8 z-[5]";
 const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
 const NUM_COL = "min-w-[4.5rem] whitespace-nowrap";
 const TAG_COL = "min-w-[3.75rem] whitespace-nowrap";
-const ACTION_COL = "min-w-[10.5rem] whitespace-nowrap";
+const ACTION_COL = "w-[11.5rem] min-w-[11.5rem] whitespace-nowrap";
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
@@ -138,7 +138,7 @@ function RowActions({
   onSell: () => void;
 }) {
   return (
-    <div className="flex flex-nowrap items-center justify-end gap-0.5">
+    <div className="inline-grid grid-flow-col auto-cols-max items-center justify-end gap-1 whitespace-nowrap">
       {onAddSymbol && onRemoveSymbol ? (
         watchSet.has(q.symbol.toUpperCase()) ? (
           <Button
@@ -462,7 +462,7 @@ export function StockSummaryTable({
                       <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
                         {q.liveReady ? "Pass" : "Fail"}
                       </span>
-                      <span className="ml-auto">
+                      <span className="ml-auto shrink-0">
                         <RowActions
                           q={q}
                           watchSet={watchSet}
