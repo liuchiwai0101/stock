@@ -48,10 +48,12 @@ const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min
 /* Deploy nudge after PR #13. */
 const STICKY_RANK = "sticky left-0 z-[5]";
 const STICKY_STOCK = "sticky left-8 z-[5]";
-const PRICE_COL = "min-w-[6.75rem] whitespace-nowrap";
-const NUM_COL = "min-w-[5.5rem] whitespace-nowrap";
-const TAG_COL = "min-w-[4.5rem] whitespace-nowrap";
-const ACTION_COL = "min-w-[9rem] whitespace-nowrap";
+const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
+const NUM_COL = "min-w-[4.5rem] whitespace-nowrap";
+const TAG_COL = "min-w-[3.75rem] whitespace-nowrap";
+const ACTION_COL = "min-w-[10.5rem] whitespace-nowrap";
+
+/** Deploy nudge: compact holdings / scan table rows. */
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
@@ -137,12 +139,13 @@ function RowActions({
   onSell: () => void;
 }) {
   return (
-    <div className="flex flex-wrap justify-end gap-0.5">
+    <div className="flex flex-nowrap items-center justify-end gap-0.5">
       {onAddSymbol && onRemoveSymbol ? (
         watchSet.has(q.symbol.toUpperCase()) ? (
           <Button
             size="xs"
             variant="outline"
+            className="h-5 px-1.5 text-[10px]"
             onClick={(e) => {
               e.stopPropagation();
               onRemoveSymbol(q.symbol);
@@ -154,6 +157,7 @@ function RowActions({
           <Button
             size="xs"
             variant="outline"
+            className="h-5 px-1.5 text-[10px]"
             onClick={(e) => {
               e.stopPropagation();
               onAddSymbol(q.symbol);
@@ -166,6 +170,7 @@ function RowActions({
       <Button
         size="xs"
         variant="outline"
+        className="h-5 px-1.5 text-[10px]"
         disabled={!q.liveReady}
         onClick={(e) => {
           e.stopPropagation();
@@ -177,6 +182,7 @@ function RowActions({
       <Button
         size="xs"
         variant="outline"
+        className="h-5 px-1.5 text-[10px]"
         disabled={(heldShares[q.symbol] ?? 0) <= 0}
         onClick={(e) => {
           e.stopPropagation();
@@ -231,12 +237,12 @@ function SortHeader({
 }) {
   const active = sort.column === column;
   return (
-    <th className={cn("py-2 pr-3 font-medium", className)}>
+    <th className={cn("py-1 pr-2 font-medium", className)}>
       <button
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "inline-flex items-center gap-1 whitespace-nowrap text-left leading-tight transition hover:text-white/75",
+          "inline-flex items-center gap-0.5 whitespace-nowrap text-left text-[10px] leading-none transition hover:text-white/75",
           active ? "text-sky-200" : "text-white/40",
         )}
       >
@@ -428,11 +434,11 @@ export function StockSummaryTable({
                 return (
                   <div
                     key={q.symbol}
-                    className={cn("px-2 py-1.5", (isOpen || q.symbol === active) && "bg-white/[0.04]")}
+                    className={cn("px-2 py-1", (isOpen || q.symbol === active) && "bg-white/[0.04]")}
                   >
                     <button
                       type="button"
-                      className="grid w-full grid-cols-[1.1rem_minmax(0,1fr)_auto] items-center gap-x-1.5 text-left"
+                      className="grid w-full grid-cols-[1.1rem_minmax(0,1fr)_auto] items-center gap-x-1.5 text-left leading-tight"
                       onClick={() => toggleRow(q.symbol)}
                       aria-expanded={isOpen}
                     >
@@ -557,7 +563,7 @@ export function StockSummaryTable({
                   className={cn(
                     RANK_COL,
                     STICKY_RANK,
-                    "bg-[#10161d] py-1.5 pr-1 font-medium text-white/40",
+                    "bg-[#10161d] py-1 pr-1 font-medium text-white/40",
                   )}
                 >
                   Rank
@@ -617,7 +623,7 @@ export function StockSummaryTable({
                   className={TAG_COL}
                 />
                 <SortHeader label="Backtest" column="bt" sort={sort} onSort={toggleSort} className={NUM_COL} />
-                <th className={cn(ACTION_COL, "py-1.5 font-medium text-white/40")} />
+                <th className={cn(ACTION_COL, "py-1 font-medium text-white/40")} />
               </tr>
             </thead>
             <tbody>
@@ -636,7 +642,7 @@ export function StockSummaryTable({
                         className={cn(
                           RANK_COL,
                           STICKY_RANK,
-                          "bg-inherit py-1.5 pr-1 font-mono text-[11px] text-white/40",
+                          "bg-inherit py-0.5 pr-1 font-mono text-[11px] leading-none text-white/40",
                         )}
                       >
                         {index + 1}
@@ -645,7 +651,7 @@ export function StockSummaryTable({
                         className={cn(
                           stockCol,
                           STICKY_STOCK,
-                          "overflow-hidden py-1.5 pr-2",
+                          "overflow-hidden py-0.5 pr-2",
                           isOpen || q.symbol === active ? "bg-[#141a21]" : "bg-[#10161d]",
                         )}
                       >
@@ -655,45 +661,45 @@ export function StockSummaryTable({
                             e.stopPropagation();
                             toggleRow(q.symbol);
                           }}
-                          className="flex w-full min-w-0 items-center gap-1 overflow-hidden text-left"
+                          className="flex w-full min-w-0 items-center gap-1 overflow-hidden text-left leading-none"
                           aria-expanded={isOpen}
                         >
                           <span className="inline-block w-3 shrink-0 text-white/35">{isOpen ? "▾" : "▸"}</span>
                           <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                         </button>
                       </td>
-                      <td className={cn(PRICE_COL, "py-1.5 pr-2 font-mono text-[12px]")}>
-                        {formatPrice(q.last)}
-                        <div className={cn("text-[10px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</div>
+                      <td className={cn(PRICE_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none")}>
+                        <span>{formatPrice(q.last)}</span>
+                        <span className={cn("ml-1 text-[10px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
                       </td>
-                      <td className={cn(PRICE_COL, "py-1.5 pr-2 font-mono text-[12px]")}>{formatPrice(q.targetPrice)}</td>
-                      <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px]", clsxSign(q.expectedReturn))}>
+                      <td className={cn(PRICE_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none")}>{formatPrice(q.targetPrice)}</td>
+                      <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none", clsxSign(q.expectedReturn))}>
                         {formatPct(q.expectedReturn)}
                       </td>
-                      <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px] text-sky-200")}>
+                      <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none text-sky-200")}>
                         {(q.metrics.hitRate * 100).toFixed(0)}%
                       </td>
                       {buyList ? (
-                        <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px] text-white/65")}>
+                        <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none text-white/65")}>
                           {(q.confidence * 100).toFixed(0)}%
                         </td>
                       ) : null}
                       {buyList ? (
-                        <td className={cn(NUM_COL, "py-1.5 pr-2 font-mono text-[12px] text-white/65")}>
+                        <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none text-white/65")}>
                           {q.backtest.sharpe.toFixed(2)}
                         </td>
                       ) : null}
-                      <td className={cn(TAG_COL, "py-1.5 pr-2")}>
-                        <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px]", signalClass(q.signal))}>
+                      <td className={cn(TAG_COL, "py-0.5 pr-2")}>
+                        <span className={cn("rounded-full border px-1.5 py-px text-[10px] leading-none", signalClass(q.signal))}>
                           {q.signal}
                         </span>
                       </td>
-                      <td className={cn(NUM_COL, "py-1.5 pr-2 text-[12px]")}>
+                      <td className={cn(NUM_COL, "py-0.5 pr-2 text-[12px] leading-none")}>
                         <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
                           {q.liveReady ? "Pass" : "Fail"}
                         </span>
                       </td>
-                      <td className={cn(ACTION_COL, "py-1.5 text-right")}>
+                      <td className={cn(ACTION_COL, "py-0.5 text-right")}>
                         <RowActions
                           q={q}
                           watchSet={watchSet}
