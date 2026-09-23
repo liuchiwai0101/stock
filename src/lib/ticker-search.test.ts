@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isLikelyTicker, searchListedMarkets, searchTradableMarkets, type ListedSymbol } from "@/lib/ticker-search";
+import { isLikelyTicker, resolveListedSymbol, searchListedMarkets, searchTradableMarkets, type ListedSymbol } from "@/lib/ticker-search";
 
 const ROWS: ListedSymbol[] = [
   { symbol: "0981.HK", name: "中芯国际", market: "HK", aliases: [] },
@@ -8,6 +8,7 @@ const ROWS: ListedSymbol[] = [
   { symbol: "601611.SS", name: "中国核建", market: "CN", aliases: [] },
   { symbol: "AAPL", name: "Apple", market: "US", aliases: ["苹果"] },
   { symbol: "0700.HK", name: "腾讯控股", market: "HK", aliases: [] },
+  { symbol: "0883.HK", name: "中国海洋石油", market: "HK", aliases: [] },
 ];
 
 describe("searchListedMarkets", () => {
@@ -34,6 +35,15 @@ describe("searchTradableMarkets", () => {
     const symbols = hits.map((hit) => hit.symbol);
     expect(symbols).toContain("0981.HK");
     expect(symbols).toContain("688981.SS");
+  });
+});
+
+describe("resolveListedSymbol", () => {
+  it("maps 中国海洋石油 to the Hong Kong ticker", () => {
+    expect(resolveListedSymbol("中国海洋石油", ROWS)).toEqual({
+      symbol: "0883.HK",
+      name: "中国海洋石油",
+    });
   });
 });
 

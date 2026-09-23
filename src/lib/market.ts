@@ -295,10 +295,56 @@ async function loadStaticSnapshot(ticker: string): Promise<QuoteSeries | null> {
 export function isLiveQuoteSeries(series: QuoteSeries | null | undefined): series is QuoteSeries {
   return Boolean(
     series &&
-      (series.source === "yahoo" || series.source === "stooq") &&
+      (series.source === "yahoo" || series.source === "stooq" || series.source === "tencent") &&
       Array.isArray(series.bars) &&
       series.bars.length >= MIN_QUOTE_BARS,
   );
+}
+
+function tencentCode(ticker: string): string | null {
+  const t = canonicalizeTicker(ticker);
+  const hk = t.match(/^(\d{4})\.HK$/);
+  if (hk) return `hk${hk[1].padStart(5, "0")}`;
+  const cn = t.match(/^(\d{6})\.(SS|SZ)$/);
+  if (cn) return `${cn[2] === "SS" ? "sh" : "sz"}${cn[1]}`;
+  if (/^[A-Z][A-Z0-9-]{0,9}$/.test(t) && !t.includes(".")) return `us${t}`;
+  return null;
+}
+
+async function fetchTencent(ticker: string): Promise<QuoteSeries> {
+  const code = tencentCode(ticker);
+  if (!code) throw new Error(`No Tencent code for ${ticker}`);
+  const url = `https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=${code},day,,,500,qfq`;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Tencent ${res.status}`);
+  const json = (await res.json()) as {
+    data?: Record<string, { qfqday?: string[][]; day?: string[][] }>;
+  };
+  const node = json.data?.[code];
+  const rows = node?.qfqday?.length ? node.qfqday : node?.day;
+  if (!rows?.length) throw new Error(`Tencent returned no series for ${ticker}`);
+  const bars: Bar[] = [];
+  for (const row of rows) {
+    const [date, open, close, high, low, volume] = row;
+    if (!date || !close) continue;
+    bars.push({
+      date,
+      open: Number(open),
+      high: Number(high),
+      low: Number(low),
+      close: Number(close),
+      volume: Number(volume),
+    });
+  }
+  const cleaned = cleanBars(bars).slice(-400);
+  if (cleaned.length < MIN_QUOTE_BARS) throw new Error("Not enough Tencent history");
+  return {
+    symbol: ticker,
+    name: companyName(ticker),
+    currency: ticker.endsWith(".HK") ? "HKD" : ticker.endsWith(".SS") || ticker.endsWith(".SZ") ? "CNY" : "USD",
+    source: "tencent",
+    bars: cleaned,
+  };
 }
 
 function toYahooSymbol(ticker: string): string {
@@ -334,6 +380,11 @@ export async function loadQuote(
     const series = await fetchYahoo(yahooSymbol, range);
     return { ...series, symbol: ticker };
   } catch {
+    try {
+      return await fetchTencent(ticker);
+    } catch {
+      // Yahoo and Tencent both missed this ticker.
+    }
     if (!inBrowser) {
       try {
         return await fetchStooq(ticker);

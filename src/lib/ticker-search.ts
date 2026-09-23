@@ -164,3 +164,43 @@ export async function searchTradableMarkets(query: string): Promise<TickerSearch
   const rows = await loadTickerDirectory();
   return searchListedMarkets(query, rows);
 }
+
+export function resolveListedSymbol(
+  raw: string,
+  rows: ListedSymbol[],
+): { symbol: string; name: string } | null {
+  const typed = canonicalizeTicker(raw.replace(/\s+/g, ""));
+  if (isLikelyTicker(typed)) {
+    const row = rows.find((item) => item.symbol === typed);
+    return { symbol: typed, name: compact(row?.aliases[0] || row?.name || typed) };
+  }
+  const hits = searchListedMarkets(raw, rows, 8);
+  const q = fold(raw);
+  const exact = hits.filter((hit) => fold(hit.name) === q);
+  const pick = exact[0] ?? (hits.length === 1 ? hits[0] : null);
+  if (!pick) return null;
+  return { symbol: pick.symbol, name: pick.name };
+}
+
+export async function resolveTradableSymbol(raw: string): Promise<{ symbol: string; name: string } | null> {
+  const rows = await loadTickerDirectory();
+  return resolveListedSymbol(raw, rows);
+}
+
+export async function resolveWatchlistSymbols(symbols: string[]): Promise<string[]> {
+  const rows = await loadTickerDirectory();
+  const out: string[] = [];
+  const names: Record<string, string> = {};
+  for (const symbol of symbols) {
+    const resolved = resolveListedSymbol(symbol, rows);
+    const next = resolved?.symbol ?? (isLikelyTicker(symbol) ? canonicalizeTicker(symbol) : "");
+    if (!next || out.includes(next)) continue;
+    out.push(next);
+    if (resolved?.name && resolved.name !== next) names[next] = resolved.name;
+  }
+  if (Object.keys(names).length > 0 && typeof window !== "undefined") {
+    const { mergeChineseNames } = await import("@/lib/chinese-names-store");
+    mergeChineseNames(names);
+  }
+  return out.length > 0 ? out : symbols;
+}

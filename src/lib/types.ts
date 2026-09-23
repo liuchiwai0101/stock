@@ -1,6 +1,6 @@
 export type Horizon = 5 | 10 | 21 | 63;
 
-export type DataSource = "yahoo" | "stooq" | "simulated";
+export type DataSource = "yahoo" | "stooq" | "tencent" | "simulated";
 
 export type Bar = {
   date: string;

@@ -32,7 +32,8 @@ import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelectio
 import { sharesForWeight } from "@/lib/trading";
 import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
 import { canonicalizeTicker, mergeTickerSearchHits, tickerFromAddField } from "@/lib/ticker";
-import { isLikelyTicker } from "@/lib/ticker-search";
+import { isLikelyTicker, resolveTradableSymbol } from "@/lib/ticker-search";
+import { mergeChineseNames } from "@/lib/chinese-names-store";
 import { MAX_WATCHLIST_SYMBOLS } from "@/lib/vin-watchlist";
 import { UNIVERSE, companyName } from "@/lib/universe";
 import { cn } from "@/lib/utils";
@@ -340,9 +341,10 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
     ensureVinWatchlistSeeded();
     const saved = loadSelection();
     const preferredMode: "watch" | "buyList" = page === "scan" ? "buyList" : "watch";
-    void loadBestPreviewScan().then((cachedScan) => {
-      setSymbols(saved.symbols);
-      setActive(saved.active);
+    void loadBestPreviewScan().then(async (cachedScan) => {
+      const resolved = await resolveWatchlistSymbols(saved.symbols);
+      setSymbols(resolved);
+      setActive(resolved.includes(saved.active) ? saved.active : (resolved[0] ?? saved.active));
       setHorizon(saved.horizon);
       setViewMode(preferredMode);
       if (preferredMode === "buyList" && cachedScan) {
@@ -408,7 +410,15 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
   }, []);
 
   function addSymbol(symbol: string) {
-    const next = canonicalizeTicker(symbol);
+    void resolveTradableSymbol(symbol).then((resolved) => {
+      const next = resolved?.symbol || (isLikelyTicker(symbol) ? canonicalizeTicker(symbol) : "");
+      if (!next) return;
+      if (resolved?.name && resolved.name !== next) mergeChineseNames({ [next]: resolved.name });
+      commitSymbol(next);
+    });
+  }
+
+  function commitSymbol(next: string) {
     if (!next) return;
     setViewMode("watch");
     setSymbols((prev) => {
