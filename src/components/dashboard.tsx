@@ -797,7 +797,7 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
 
             {page === "scan" ? <ScanReviewPanel /> : null}
 
-            {quote ? (
+            {quote && page !== "scan" ? (
               <section className="space-y-3">
                 <div>
                   <h2 className="text-lg font-semibold tracking-tight">Models</h2>
