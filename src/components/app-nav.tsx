@@ -12,6 +12,8 @@ const LINKS = [
   { href: "/auto", label: "Auto Trade", icon: Bot },
 ] as const;
 
+/** Deploy nudge after PR #27 so Pages rebuilds /scan and /auto. */
+
 /** Fixed top chrome: brand left; primary menu + Account padded to the right. */
 export function AppNav({ subtitle }: { subtitle?: string }) {
   const pathname = usePathname();
