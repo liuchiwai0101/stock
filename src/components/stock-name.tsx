@@ -23,11 +23,11 @@ export function StockNameInline({
 
   return (
     <span
-      className={cn("flex min-w-0 items-baseline gap-1.5 overflow-hidden", className)}
+      className={cn("flex min-w-0 items-baseline gap-1 overflow-hidden leading-none", className)}
       title={`${symbol} · ${name} · ${label}`}
     >
-      <span className="shrink-0 font-medium tracking-tight">{symbol}</span>
-      <span className="min-w-0 truncate text-[11px] text-white/50">{label}</span>
+      <span className="shrink-0 text-[12px] font-medium tracking-tight">{symbol}</span>
+      <span className="min-w-0 truncate text-[10px] text-white/50">{label}</span>
     </span>
   );
 }
