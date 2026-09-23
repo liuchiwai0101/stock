@@ -57,37 +57,37 @@ export function SuggestionComparePanel({
         <MetaChip label="Now BUY" value={compare.currentMeta.buyCount} highlight />
       </div>
       <div className="overflow-x-auto rounded-lg border border-white/8">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table className="w-full min-w-[640px] text-left text-sm leading-none">
           <thead className="text-[10px] tracking-wide text-white/40 uppercase">
             <tr className="border-b border-white/8">
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">Stock</th>
-              <th className="px-3 py-2 font-medium">Rank</th>
-              <th className="px-3 py-2 font-medium">Prev exp.</th>
-              <th className="px-3 py-2 font-medium">Now exp.</th>
-              <th className="px-3 py-2 font-medium">Hit</th>
+              <th className="px-2 py-1 font-medium">Status</th>
+              <th className="px-2 py-1 font-medium">Stock</th>
+              <th className="px-2 py-1 font-medium">Rank</th>
+              <th className="px-2 py-1 font-medium">Prev exp.</th>
+              <th className="px-2 py-1 font-medium">Now exp.</th>
+              <th className="px-2 py-1 font-medium">Hit</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((row) => (
               <tr key={row.symbol} className="border-b border-white/6 last:border-0">
-                <td className={cn("px-3 py-2 text-xs font-medium", statusClass(row.status))}>
+                <td className={cn("px-2 py-1 text-xs font-medium", statusClass(row.status))}>
                   {statusLabel(row.status)}
                 </td>
-                <td className="px-3 py-2">
-                  <div className="font-medium">{row.symbol}</div>
-                  <div className="text-[11px] text-white/40">{row.name}</div>
+                <td className="px-2 py-1">
+                  <span className="font-medium">{row.symbol}</span>
+                  <span className="ml-1.5 text-[11px] text-white/40">{row.name}</span>
                 </td>
-                <td className="px-3 py-2 font-mono text-white/70">
+                <td className="px-2 py-1 font-mono text-white/70">
                   {row.previousRank ?? "—"} → {row.currentRank ?? "—"}
                 </td>
-                <td className="px-3 py-2 font-mono text-white/70">
+                <td className="px-2 py-1 font-mono text-white/70">
                   {row.previousExpected != null ? formatPct(row.previousExpected) : "—"}
                 </td>
-                <td className="px-3 py-2 font-mono text-white/70">
+                <td className="px-2 py-1 font-mono text-white/70">
                   {row.currentExpected != null ? formatPct(row.currentExpected) : "—"}
                 </td>
-                <td className="px-3 py-2 font-mono text-white/55">
+                <td className="px-2 py-1 font-mono text-white/55">
                   {row.previousHitRate != null ? `${(row.previousHitRate * 100).toFixed(0)}%` : "—"}
                   {row.currentHitRate != null ? ` → ${(row.currentHitRate * 100).toFixed(0)}%` : ""}
                 </td>
@@ -114,7 +114,7 @@ function MetaChip({
   return (
     <div
       className={cn(
-        "rounded-lg border px-3 py-2",
+        "rounded-lg border px-2 py-1",
         highlight ? "border-emerald-500/25 bg-emerald-500/10" : "border-white/10 bg-white/3",
       )}
     >
