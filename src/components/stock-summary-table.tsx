@@ -48,12 +48,11 @@ const STOCK_COL_BUY = "w-[10rem] min-w-[10rem] max-w-[10rem] sm:w-[12rem] sm:min
 /* Deploy nudge after PR #13. */
 const STICKY_RANK = "sticky left-0 z-[5]";
 const STICKY_STOCK = "sticky left-8 z-[5]";
+/** Deploy nudge after PR #28 so Pages rebuilds compact table rows. */
 const PRICE_COL = "min-w-[5.5rem] whitespace-nowrap";
 const NUM_COL = "min-w-[4.5rem] whitespace-nowrap";
 const TAG_COL = "min-w-[3.75rem] whitespace-nowrap";
 const ACTION_COL = "min-w-[10.5rem] whitespace-nowrap";
-
-/** Deploy nudge: compact holdings / scan table rows. */
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
