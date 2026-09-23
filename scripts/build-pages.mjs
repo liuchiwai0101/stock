@@ -70,6 +70,7 @@ try {
   });
   writeFileSync("out/.nojekyll", "");
   if (existsSync("data/asia-symbols.json")) {
+    mkdirSync("out/data", { recursive: true });
     cpSync("data/asia-symbols.json", "out/data/asia-symbols.json");
   }
   publishDir("out", "docs");
