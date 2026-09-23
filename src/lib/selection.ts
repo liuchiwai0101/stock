@@ -101,10 +101,10 @@ export function addSymbolsToWatchlist(symbols: string[]): SavedSelection {
 export function ensureVinWatchlistSeeded(): SavedSelection | null {
   const user = currentUser();
   if (!user || user.username !== "Vin") return null;
-  const seeded = vinDefaultSelection();
+  const seeded = { ...vinDefaultSelection(), viewMode: "buyList" as const };
   const existingRaw = window.localStorage.getItem(storageKey());
   if (!existingRaw) {
-    saveSelection({ ...seeded, viewMode: "buyList" });
+    saveSelection(seeded);
     return seeded;
   }
   // Always ensure Futu US names are on Vin's list (additive).
