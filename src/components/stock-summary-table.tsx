@@ -52,7 +52,7 @@ const STICKY_STOCK = "sticky left-8 z-[5]";
 const PRICE_COL = "whitespace-nowrap";
 const NUM_COL = "whitespace-nowrap";
 const TAG_COL = "whitespace-nowrap";
-const ACTION_COL = "w-[8.75rem] whitespace-nowrap";
+const ACTION_COL = "whitespace-nowrap";
 
 type TradeEditor = { symbol: string; side: "BUY" | "SELL" };
 
@@ -544,17 +544,17 @@ export function StockSummaryTable({
             <div className="hidden max-w-full overflow-x-hidden md:block">
             <table className="w-full table-fixed text-left text-sm">
             <colgroup>
-              <col className="w-[2.25rem]" />
+              <col className="w-[4%]" />
               <col className={buyList ? "w-[16%]" : "w-[22%]"} />
               <col className={buyList ? "w-[10%]" : "w-[12%]"} />
               <col className={buyList ? "w-[9%]" : "w-[11%]"} />
-              <col className={buyList ? "w-[9%]" : "w-[11%]"} />
-              <col className={buyList ? "w-[7%]" : "w-[8%]"} />
+              <col className={buyList ? "w-[10%]" : "w-[12%]"} />
+              <col className={buyList ? "w-[7%]" : "w-[9%]"} />
               {buyList ? <col className="w-[8%]" /> : null}
               {buyList ? <col className="w-[8%]" /> : null}
               <col className={buyList ? "w-[7%]" : "w-[8%]"} />
               <col className={buyList ? "w-[7%]" : "w-[8%]"} />
-              <col className="w-[8.75rem]" />
+              <col className={buyList ? "w-[14%]" : "w-[14%]"} />
             </colgroup>
             <thead className="text-[10px] font-medium tracking-normal">
               <tr className="border-b border-white/8">
