@@ -338,8 +338,8 @@ export function Dashboard() {
       setSymbols(saved.symbols);
       setActive(saved.active);
       setHorizon(saved.horizon);
-      if (cachedScan) {
-        setViewMode("buyList");
+      setViewMode(saved.viewMode);
+      if (saved.viewMode === "buyList" && cachedScan) {
         setRun({
           horizon: cachedScan.horizon,
           generatedAt: cachedScan.generatedAt,
@@ -360,9 +360,9 @@ export function Dashboard() {
 
   useEffect(() => {
     if (!selectionReady) return;
-    saveSelection({ symbols, active, horizon });
+    saveSelection({ symbols, active, horizon, viewMode });
     if (getAccountSnapshot()) void pushUserData();
-  }, [symbols, active, horizon, selectionReady]);
+  }, [symbols, active, horizon, viewMode, selectionReady]);
 
   useEffect(() => {
     if (!selectionReady) return;
