@@ -162,7 +162,7 @@ export function AutoTradePage() {
   return (
     <div className="flex min-h-full flex-col">
       <AppNav subtitle="Paper auto trade · fresh daily scan required each round" />
-      <main className="mx-auto flex w-full max-w-[1100px] flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
+      <main className="mx-auto flex w-full max-w-[1360px] flex-1 flex-col gap-5 px-4 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold tracking-tight">Auto Trade</h1>

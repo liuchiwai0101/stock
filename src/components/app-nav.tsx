@@ -20,7 +20,7 @@ export function AppNav({ subtitle }: { subtitle?: string }) {
 
   return (
     <header className="sticky top-0 z-30 h-12 shrink-0 border-b border-white/8 bg-[#0b1016] sm:h-14 sm:bg-[#0b1016]/95 sm:backdrop-blur-xl">
-      <div className="mx-auto flex h-full w-full max-w-[1100px] items-center gap-2 px-3 sm:gap-3 sm:px-6">
+      <div className="mx-auto flex h-full w-full max-w-[1360px] items-center gap-2 px-3 sm:gap-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-sky-400/15 text-sky-300 ring-1 ring-sky-400/25 sm:size-8">
             <BriefcaseBusiness className="size-3.5" />
