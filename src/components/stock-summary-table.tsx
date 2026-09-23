@@ -144,7 +144,7 @@ function RowActions({
           <Button
             size="xs"
             variant="outline"
-            className="h-5 px-1.5 text-[10px]"
+            className="h-5 px-1.5 text-[11px]"
             onClick={(e) => {
               e.stopPropagation();
               onRemoveSymbol(q.symbol);
@@ -156,7 +156,7 @@ function RowActions({
           <Button
             size="xs"
             variant="outline"
-            className="h-5 px-1.5 text-[10px]"
+            className="h-5 px-1.5 text-[11px]"
             onClick={(e) => {
               e.stopPropagation();
               onAddSymbol(q.symbol);
@@ -169,7 +169,7 @@ function RowActions({
       <Button
         size="xs"
         variant="outline"
-        className="h-5 px-1.5 text-[10px]"
+        className="h-5 px-1.5 text-[11px]"
         disabled={!q.liveReady}
         onClick={(e) => {
           e.stopPropagation();
@@ -181,7 +181,7 @@ function RowActions({
       <Button
         size="xs"
         variant="outline"
-        className="h-5 px-1.5 text-[10px]"
+        className="h-5 px-1.5 text-[11px]"
         disabled={(heldShares[q.symbol] ?? 0) <= 0}
         onClick={(e) => {
           e.stopPropagation();
@@ -211,7 +211,7 @@ function SortChip({
       type="button"
       onClick={() => onSort(column)}
       className={cn(
-        "shrink-0 rounded-full border px-2 py-0.5 text-[11px] leading-none",
+        "shrink-0 rounded-full border px-2 py-0.5 text-[12px] leading-none",
         active ? "border-sky-400/40 bg-sky-400/15 text-sky-100" : "border-white/10 text-white/50",
       )}
     >
@@ -241,12 +241,12 @@ function SortHeader({
         type="button"
         onClick={() => onSort(column)}
         className={cn(
-          "inline-flex max-w-full items-start gap-0.5 whitespace-normal text-left text-[10px] leading-tight transition hover:text-white/75",
+          "inline-flex max-w-full items-start gap-0.5 whitespace-normal text-left text-[11px] leading-tight transition hover:text-white/75",
           active ? "text-sky-200" : "text-white/40",
         )}
       >
         <span>{label}</span>
-        <span className="font-mono text-[9px]">{active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span>
+        <span className="font-mono text-[10px]">{active ? (sort.dir === "asc" ? "▲" : "▼") : "↕"}</span>
       </button>
     </th>
   );
@@ -441,16 +441,16 @@ export function StockSummaryTable({
                       onClick={() => toggleRow(q.symbol)}
                       aria-expanded={isOpen}
                     >
-                      <span className="font-mono text-[10px] text-white/40">{index + 1}</span>
+                      <span className="font-mono text-[11px] text-white/40">{index + 1}</span>
                       <span className="flex min-w-0 items-center gap-1">
-                        <span className="text-[10px] text-white/35">{isOpen ? "▾" : "▸"}</span>
+                        <span className="text-[11px] text-white/35">{isOpen ? "▾" : "▸"}</span>
                         <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                       </span>
-                      <span className={cn("rounded-full border px-1.5 py-px text-[9px]", signalClass(q.signal))}>
+                      <span className={cn("rounded-full border px-1.5 py-px text-[10px]", signalClass(q.signal))}>
                         {q.signal}
                       </span>
                     </button>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-5 font-mono text-[11px] tabular-nums">
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-5 font-mono text-[12px] tabular-nums">
                       <span>
                         {formatPrice(q.last)}
                         <span className={cn("ml-0.5", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
@@ -509,7 +509,7 @@ export function StockSummaryTable({
                               return (
                                 <span
                                   key={c.id}
-                                  className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/4 px-1.5 py-0.5 text-[10px]"
+                                  className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/4 px-1.5 py-0.5 text-[11px]"
                                 >
                                   <span className="text-white/45">{c.short}</span>
                                   <span className={cn("font-mono", clsxSign(m.expectedReturn))}>
@@ -556,7 +556,7 @@ export function StockSummaryTable({
               <col className={buyList ? "w-[7%]" : "w-[8%]"} />
               <col className={buyList ? "w-[14%]" : "w-[14%]"} />
             </colgroup>
-            <thead className="text-[10px] font-medium tracking-normal">
+            <thead className="text-[11px] font-medium tracking-normal">
               <tr className="border-b border-white/8">
                 <th
                   className={cn(
@@ -641,7 +641,7 @@ export function StockSummaryTable({
                         className={cn(
                           RANK_COL,
                           STICKY_RANK,
-                          "bg-inherit py-0.5 pr-1 font-mono text-[11px] leading-none text-white/40",
+                          "bg-inherit py-0.5 pr-1 font-mono text-[12px] leading-none text-white/40",
                         )}
                       >
                         {index + 1}
@@ -667,33 +667,33 @@ export function StockSummaryTable({
                           <StockNameInline symbol={q.symbol} name={q.name} className="min-w-0 flex-1" />
                         </button>
                       </td>
-                      <td className={cn(PRICE_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none")}>
+                      <td className={cn(PRICE_COL, "py-0.5 pr-2 font-mono text-[13px] leading-none")}>
                         <span>{formatPrice(q.last)}</span>
-                        <span className={cn("ml-1 text-[10px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
+                        <span className={cn("ml-1 text-[11px]", clsxSign(q.changePct))}>{formatPct(q.changePct)}</span>
                       </td>
-                      <td className={cn(PRICE_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none")}>{formatPrice(q.targetPrice)}</td>
-                      <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none", clsxSign(q.expectedReturn))}>
+                      <td className={cn(PRICE_COL, "py-0.5 pr-2 font-mono text-[13px] leading-none")}>{formatPrice(q.targetPrice)}</td>
+                      <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[13px] leading-none", clsxSign(q.expectedReturn))}>
                         {formatPct(q.expectedReturn)}
                       </td>
-                      <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none text-sky-200")}>
+                      <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[13px] leading-none text-sky-200")}>
                         {(q.metrics.hitRate * 100).toFixed(0)}%
                       </td>
                       {buyList ? (
-                        <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none text-white/65")}>
+                        <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[13px] leading-none text-white/65")}>
                           {(q.confidence * 100).toFixed(0)}%
                         </td>
                       ) : null}
                       {buyList ? (
-                        <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[12px] leading-none text-white/65")}>
+                        <td className={cn(NUM_COL, "py-0.5 pr-2 font-mono text-[13px] leading-none text-white/65")}>
                           {q.backtest.sharpe.toFixed(2)}
                         </td>
                       ) : null}
                       <td className={cn(TAG_COL, "py-0.5 pr-2")}>
-                        <span className={cn("rounded-full border px-1.5 py-px text-[10px] leading-none", signalClass(q.signal))}>
+                        <span className={cn("rounded-full border px-1.5 py-px text-[11px] leading-none", signalClass(q.signal))}>
                           {q.signal}
                         </span>
                       </td>
-                      <td className={cn(NUM_COL, "py-0.5 pr-2 text-[12px] leading-none")}>
+                      <td className={cn(NUM_COL, "py-0.5 pr-2 text-[13px] leading-none")}>
                         <span className={q.liveReady ? "text-emerald-400" : "text-amber-400"}>
                           {q.liveReady ? "Pass" : "Fail"}
                         </span>
@@ -756,7 +756,7 @@ export function StockSummaryTable({
                               </div>
                               <span
                                 className={cn(
-                                  "rounded-full border px-2 py-0.5 text-[11px]",
+                                  "rounded-full border px-2 py-0.5 text-[12px]",
                                   signalClass(q.signal),
                                 )}
                               >
@@ -771,7 +771,7 @@ export function StockSummaryTable({
                                   return (
                                     <span
                                       key={c.id}
-                                      className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/4 px-1.5 py-0.5 text-[10px]"
+                                      className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/4 px-1.5 py-0.5 text-[11px]"
                                       title={`${m.label} · wt ${(m.weight * 100).toFixed(0)}%`}
                                     >
                                       <span className="text-white/45">{c.short}</span>
