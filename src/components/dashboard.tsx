@@ -756,19 +756,6 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
           <>
             <section className="space-y-2 sm:space-y-3">
               <div className="space-y-2">
-                <h2 className="hidden text-lg font-semibold tracking-tight sm:block">
-                  {page === "scan" ? "US scan results" : "Holdings analysis"}
-                </h2>
-                <p className="hidden text-sm text-white/45 sm:block">
-                  {page === "scan"
-                    ? `Saved U.S. listed scan · ${run.horizon}d horizon · sort by model columns · last prices from Yahoo`
-                    : "Your stocks with per-model suggestions — last prices refresh from Yahoo."}
-                  {livePrices.updatedAt
-                    ? ` · refreshed ${new Date(livePrices.updatedAt).toLocaleString()}`
-                    : livePrices.loading
-                      ? " · fetching latest closes…"
-                      : ""}
-                </p>
                 {viewMode === "buyList" && scanMeta ? (
                   <div className="flex gap-1.5 sm:flex-wrap sm:gap-2 sm:pt-1">
                     <ScanStat
