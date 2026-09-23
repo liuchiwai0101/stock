@@ -1,5 +1,7 @@
-import { MonitorPage } from "@/components/monitor-page";
+"use client";
 
-export default function MonitorRoute() {
-  return <MonitorPage />;
+import { ClientRedirect } from "@/components/client-redirect";
+
+export default function MonitorRedirect() {
+  return <ClientRedirect href="/scan" />;
 }

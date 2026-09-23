@@ -1,5 +1,7 @@
-import { VerifyPage } from "@/components/verify-page";
+"use client";
 
-export default function VerifyRoute() {
-  return <VerifyPage />;
+import { ClientRedirect } from "@/components/client-redirect";
+
+export default function VerifyRedirect() {
+  return <ClientRedirect href="/scan" />;
 }
