@@ -42,7 +42,7 @@ type SortColumn =
 type SortDir = "asc" | "desc";
 
 const RANK_COL = "w-8 min-w-8 max-w-8";
-const STOCK_COL_WATCH = "w-[22%] max-w-[22%]";
+const STOCK_COL_WATCH = "w-[18%] max-w-[18%]";
 const STOCK_COL_BUY = "w-[16%] max-w-[16%]";
 /* Keep below sticky desk chrome (z-20) so mobile scroll doesn’t feel locked. */
 /* Deploy nudge after PR #13. */
@@ -124,16 +124,20 @@ function RowActions({
   q,
   watchSet,
   heldShares,
+  verifyTracked,
   onAddSymbol,
   onRemoveSymbol,
+  onToggleVerify,
   onBuy,
   onSell,
 }: {
   q: CompanyForecast;
   watchSet: Set<string>;
   heldShares: Record<string, number>;
+  verifyTracked?: boolean;
   onAddSymbol?: (symbol: string) => void;
   onRemoveSymbol?: (symbol: string) => void;
+  onToggleVerify?: (q: CompanyForecast) => void;
   onBuy: () => void;
   onSell: () => void;
 }) {
@@ -165,6 +169,22 @@ function RowActions({
             Add
           </Button>
         )
+      ) : null}
+      {onToggleVerify ? (
+        <Button
+          size="xs"
+          variant="outline"
+          className={cn(
+            "h-5 px-1.5 text-[11px]",
+            verifyTracked && "border-sky-400/40 bg-sky-400/12 text-sky-100",
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleVerify(q);
+          }}
+        >
+          {verifyTracked ? "Watching" : "Watch"}
+        </Button>
       ) : null}
       <Button
         size="xs"
@@ -261,6 +281,8 @@ export function StockSummaryTable({
   onTradeAll,
   onAddSymbol,
   onRemoveSymbol,
+  onToggleVerify,
+  verifyTrackedSymbols = [],
   watchlistSymbols = [],
   heldShares = {},
   suggestedShares,
@@ -276,6 +298,8 @@ export function StockSummaryTable({
   onTradeAll: () => void;
   onAddSymbol?: (symbol: string) => void;
   onRemoveSymbol?: (symbol: string) => void;
+  onToggleVerify?: (q: CompanyForecast) => void;
+  verifyTrackedSymbols?: string[];
   watchlistSymbols?: string[];
   heldShares?: Record<string, number>;
   suggestedShares?: (q: CompanyForecast) => number;
@@ -294,6 +318,10 @@ export function StockSummaryTable({
     dir: buyList ? "desc" : "asc",
   });
   const watchSet = useMemo(() => new Set(watchlistSymbols.map((s) => s.toUpperCase())), [watchlistSymbols]);
+  const verifySet = useMemo(
+    () => new Set(verifyTrackedSymbols.map((s) => s.toUpperCase())),
+    [verifyTrackedSymbols],
+  );
 
   const baseRows = useMemo(() => {
     return buyList ? quotes.filter((q) => q.liveReady && q.signal === "BUY") : quotes;
@@ -467,8 +495,10 @@ export function StockSummaryTable({
                           q={q}
                           watchSet={watchSet}
                           heldShares={heldShares}
+                          verifyTracked={verifySet.has(q.symbol.toUpperCase())}
                           onAddSymbol={onAddSymbol}
                           onRemoveSymbol={onRemoveSymbol}
+                          onToggleVerify={buyList ? undefined : onToggleVerify}
                           onBuy={() => setTradeEditor({ symbol: q.symbol, side: "BUY" })}
                           onSell={() => setTradeEditor({ symbol: q.symbol, side: "SELL" })}
                         />
@@ -545,16 +575,16 @@ export function StockSummaryTable({
             <table className="w-full table-fixed text-left text-sm">
             <colgroup>
               <col className="w-[4%]" />
-              <col className={buyList ? "w-[16%]" : "w-[22%]"} />
-              <col className={buyList ? "w-[10%]" : "w-[12%]"} />
-              <col className={buyList ? "w-[9%]" : "w-[11%]"} />
-              <col className={buyList ? "w-[10%]" : "w-[12%]"} />
-              <col className={buyList ? "w-[7%]" : "w-[9%]"} />
+              <col className={buyList ? "w-[16%]" : "w-[18%]"} />
+              <col className={buyList ? "w-[10%]" : "w-[11%]"} />
+              <col className={buyList ? "w-[9%]" : "w-[10%]"} />
+              <col className={buyList ? "w-[10%]" : "w-[11%]"} />
+              <col className={buyList ? "w-[7%]" : "w-[8%]"} />
               {buyList ? <col className="w-[8%]" /> : null}
               {buyList ? <col className="w-[8%]" /> : null}
               <col className={buyList ? "w-[7%]" : "w-[8%]"} />
               <col className={buyList ? "w-[7%]" : "w-[8%]"} />
-              <col className={buyList ? "w-[14%]" : "w-[14%]"} />
+              <col className={buyList ? "w-[14%]" : "w-[18%]"} />
             </colgroup>
             <thead className="text-[11px] font-medium tracking-normal">
               <tr className="border-b border-white/8">
@@ -703,8 +733,10 @@ export function StockSummaryTable({
                           q={q}
                           watchSet={watchSet}
                           heldShares={heldShares}
+                          verifyTracked={verifySet.has(q.symbol.toUpperCase())}
                           onAddSymbol={onAddSymbol}
                           onRemoveSymbol={onRemoveSymbol}
+                          onToggleVerify={buyList ? undefined : onToggleVerify}
                           onBuy={() => setTradeEditor({ symbol: q.symbol, side: "BUY" })}
                           onSell={() => setTradeEditor({ symbol: q.symbol, side: "SELL" })}
                         />

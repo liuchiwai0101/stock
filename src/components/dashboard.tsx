@@ -17,6 +17,7 @@ import { useChineseNameCache } from "@/hooks/use-chinese-name-cache";
 import { StockSummaryTable } from "@/components/stock-summary-table";
 import { SuggestionComparePanel } from "@/components/suggestion-compare-panel";
 import { ScanReviewPanel } from "@/components/scan-review-panel";
+import { VerifyTrackBoard } from "@/components/verify-track-board";
 import { ModelGuidePanel, ModelWeightsPanel } from "@/components/analysis-panels";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,9 +31,20 @@ import { applyLiveQuote } from "@/lib/live-quote";
 import { usePriceMarks } from "@/hooks/use-price-marks";
 import { defaultSelection, ensureVinWatchlistSeeded, loadSelection, saveSelection } from "@/lib/selection";
 import { sharesForWeight } from "@/lib/trading";
-import type { CompanyForecast, Horizon, RunResponse } from "@/lib/types";
+import type { CompanyForecast, Horizon, ModelId, RunResponse } from "@/lib/types";
 import { canonicalizeTicker, mergeTickerSearchHits, tickerFromAddField } from "@/lib/ticker";
 import { isLikelyTicker, resolveTradableSymbol, resolveWatchlistSymbols } from "@/lib/ticker-search";
+import {
+  evaluatePendingSnapshots,
+  isVerifyTracked,
+  loadVerifyStore,
+  pendingVerifySymbols,
+  setChosenModels,
+  startVerifyTrack,
+  stopVerifyTrack,
+  upsertDailySnapshots,
+  type VerifyStore,
+} from "@/lib/verify-track";
 import { MAX_WATCHLIST_SYMBOLS } from "@/lib/vin-watchlist";
 import { UNIVERSE, companyName } from "@/lib/universe";
 import { cn } from "@/lib/utils";
@@ -74,6 +86,10 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
   const tickerInputRef = useRef<HTMLInputElement>(null);
   const requestSeq = useRef(0);
   const busy = runLoading || scanLoading;
+  const [verifyStore, setVerifyStore] = useState<VerifyStore>(() =>
+    typeof window === "undefined" ? { tracks: [], snapshots: [] } : loadVerifyStore(),
+  );
+  const [verifyBusy, setVerifyBusy] = useState(false);
 
   const priceSymbols = useMemo(() => {
     const set = new Set<string>(symbols);
@@ -108,6 +124,15 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
   const suggestionCompare = useMemo(() => compareLatestScans(scanHistory), [scanHistory]);
   const chineseNames = useChineseNameCache();
   const quote = liveQuotes.find((q) => q.symbol === active) ?? liveQuotes[0] ?? null;
+  const verifyTrackedSymbols = useMemo(
+    () => verifyStore.tracks.map((t) => t.symbol),
+    [verifyStore.tracks],
+  );
+  const activeVerifySymbol = useMemo(() => {
+    if (page !== "holdings") return null;
+    if (verifyTrackedSymbols.includes(active)) return active;
+    return verifyTrackedSymbols[0] ?? null;
+  }, [page, active, verifyTrackedSymbols]);
   const menuHits = useMemo(() => {
     if (!query.trim()) return [];
     if (isLikelyTicker(query)) return mergeTickerSearchHits(query, hits, (s) => companyName(s));
@@ -407,6 +432,52 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
     document.addEventListener("pointerdown", onDoc);
     return () => document.removeEventListener("pointerdown", onDoc);
   }, []);
+
+  useEffect(() => {
+    if (page !== "holdings" || liveQuotes.length === 0) return;
+    if (verifyStore.tracks.length === 0) return;
+    const next = upsertDailySnapshots(liveQuotes);
+    if (next) setVerifyStore(next);
+  }, [page, liveQuotes, verifyStore.tracks.length]);
+
+  useEffect(() => {
+    if (page !== "holdings") return;
+    const pending = pendingVerifySymbols();
+    if (pending.length === 0) return;
+    const marksForPending: Record<string, number> = {};
+    for (const symbol of pending) {
+      const mark = marks[symbol];
+      if (mark > 0) marksForPending[symbol] = mark;
+    }
+    if (Object.keys(marksForPending).length === 0) return;
+    const next = evaluatePendingSnapshots(marksForPending);
+    if (next) setVerifyStore(next);
+  }, [page, marks]);
+
+  function toggleVerifyTrack(q: CompanyForecast) {
+    if (isVerifyTracked(q.symbol, verifyStore)) {
+      setVerifyStore(stopVerifyTrack(q.symbol));
+      return;
+    }
+    setVerifyStore(startVerifyTrack(q, { horizon }));
+    setActive(q.symbol);
+  }
+
+  function scoreVerifyPending() {
+    setVerifyBusy(true);
+    try {
+      const pending = pendingVerifySymbols();
+      const marksForPending: Record<string, number> = {};
+      for (const symbol of pending) {
+        const mark = marks[symbol] ?? liveQuotes.find((q) => q.symbol === symbol)?.last ?? 0;
+        if (mark > 0) marksForPending[symbol] = mark;
+      }
+      const next = evaluatePendingSnapshots(marksForPending);
+      if (next) setVerifyStore(next);
+    } finally {
+      setVerifyBusy(false);
+    }
+  }
 
   function addSymbol(symbol: string) {
     void resolveTradableSymbol(symbol).then((resolved) => {
@@ -790,6 +861,8 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
                 onTradeAll={tradeAllSignals}
                 onAddSymbol={addSymbol}
                 onRemoveSymbol={removeSymbol}
+                onToggleVerify={page === "holdings" ? toggleVerifyTrack : undefined}
+                verifyTrackedSymbols={verifyTrackedSymbols}
                 watchlistSymbols={symbols}
                 heldShares={heldShares}
                 suggestedShares={(q) =>
@@ -800,6 +873,20 @@ export function Dashboard({ page = "holdings" }: { page?: DeskPage }) {
                 horizon={run.horizon}
               />
             </section>
+
+            {page === "holdings" && activeVerifySymbol ? (
+              <VerifyTrackBoard
+                symbol={activeVerifySymbol}
+                quote={liveQuotes.find((q) => q.symbol === activeVerifySymbol) ?? null}
+                store={verifyStore}
+                evaluating={verifyBusy}
+                onEvaluate={scoreVerifyPending}
+                onStop={() => setVerifyStore(stopVerifyTrack(activeVerifySymbol))}
+                onChangeModels={(models: ModelId[]) =>
+                  setVerifyStore(setChosenModels(activeVerifySymbol, models))
+                }
+              />
+            ) : null}
 
             {page === "scan" ? <ScanReviewPanel /> : null}
 
