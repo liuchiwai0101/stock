@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { formatDate, formatPrice } from "@/lib/format";
 import type { CompanyForecast } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 type Row = {
   date: string;
@@ -26,20 +27,23 @@ type Row = {
 export function ForecastChart({
   quote,
   compact = false,
+  side = false,
 }: {
   quote: CompanyForecast;
   compact?: boolean;
+  /** Narrower chart when shown beside a company intro. */
+  side?: boolean;
 }) {
   const lastBar = quote.history[quote.history.length - 1];
+  const shell =
+    side
+      ? "h-[170px] w-full sm:h-[190px]"
+      : compact
+        ? "h-[200px] w-full sm:h-[220px]"
+        : "h-[280px] w-full sm:h-[320px]";
   if (!lastBar) {
     return (
-      <div
-        className={
-          compact
-            ? "flex h-[200px] w-full items-center justify-center text-sm text-white/45 sm:h-[220px]"
-            : "flex h-[280px] w-full items-center justify-center text-sm text-white/45 sm:h-[320px]"
-        }
-      >
+      <div className={cn(shell, "flex items-center justify-center text-sm text-white/45")}>
         No price history yet for {quote.symbol}.
       </div>
     );
@@ -70,7 +74,7 @@ export function ForecastChart({
   const yMax = (yMaxVals.length ? Math.max(...yMaxVals) : lastBar.close) * 1.015;
 
   return (
-    <div className={compact ? "h-[200px] w-full sm:h-[220px]" : "h-[280px] w-full sm:h-[320px]"}>
+    <div className={shell}>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>

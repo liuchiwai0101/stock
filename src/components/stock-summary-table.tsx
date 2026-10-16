@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import { CompanyIntroPanel } from "@/components/company-intro-panel";
 import { ForecastChart } from "@/components/forecast-chart";
 import { StockNameInline } from "@/components/stock-name";
 import { TradeOrderForm } from "@/components/trade-order-form";
@@ -530,9 +531,9 @@ export function StockSummaryTable({
                       </div>
                     ) : null}
                     {isOpen ? (
-                      <div className="mt-3">
+                      <div className="mt-3 space-y-2">
                         {!buyList && (q.models?.length ?? 0) > 0 ? (
-                          <div className="mb-2 flex flex-wrap gap-1">
+                          <div className="flex flex-wrap gap-1">
                             {MODEL_COLUMNS.map((c) => {
                               const m = modelSuggestion(q, c.id);
                               if (!m) return null;
@@ -550,20 +551,25 @@ export function StockSummaryTable({
                             })}
                           </div>
                         ) : null}
-                        {loading && detail.history.length < 5 ? (
-                          <div className="flex h-[180px] items-center justify-center text-sm text-white/45">
-                            Loading chart for {q.symbol}…
+                        <div className="grid gap-2 sm:grid-cols-[minmax(11rem,34%)_minmax(0,1fr)] sm:items-stretch">
+                          <CompanyIntroPanel symbol={q.symbol} name={q.name} />
+                          <div className="min-w-0 rounded-lg border border-white/8 bg-black/10 px-1 py-1">
+                            {loading && detail.history.length < 5 ? (
+                              <div className="flex h-[170px] items-center justify-center text-sm text-white/45 sm:h-[190px]">
+                                Loading chart for {q.symbol}…
+                              </div>
+                            ) : err && detail.history.length < 5 ? (
+                              <div className="flex h-[150px] flex-col items-center justify-center gap-2 text-sm text-amber-200/85">
+                                <span>{err}</span>
+                                <Button size="xs" variant="outline" onClick={() => loadDetail(q.symbol, q)}>
+                                  Retry
+                                </Button>
+                              </div>
+                            ) : (
+                              <ForecastChart quote={detail} compact side />
+                            )}
                           </div>
-                        ) : err && detail.history.length < 5 ? (
-                          <div className="flex h-[140px] flex-col items-center justify-center gap-2 text-sm text-amber-200/85">
-                            <span>{err}</span>
-                            <Button size="xs" variant="outline" onClick={() => loadDetail(q.symbol, q)}>
-                              Retry
-                            </Button>
-                          </div>
-                        ) : (
-                          <ForecastChart quote={detail} compact />
-                        )}
+                        </div>
                       </div>
                     ) : null}
                   </div>
@@ -819,31 +825,34 @@ export function StockSummaryTable({
                               const detail = detailQuotes[q.symbol] ?? q;
                               const loading = Boolean(detailLoading[q.symbol]);
                               const err = detailError[q.symbol];
-                              if (loading && detail.history.length < 5) {
-                                return (
-                                  <div className="flex h-[200px] items-center justify-center text-sm text-white/45 sm:h-[220px]">
-                                    Loading chart for {q.symbol}…
+                              return (
+                                <div className="grid gap-2 sm:grid-cols-[minmax(12rem,34%)_minmax(0,1fr)] sm:items-stretch">
+                                  <CompanyIntroPanel symbol={q.symbol} name={q.name} />
+                                  <div className="min-w-0 rounded-lg border border-white/8 bg-black/10 px-1 py-1">
+                                    {loading && detail.history.length < 5 ? (
+                                      <div className="flex h-[170px] items-center justify-center text-sm text-white/45 sm:h-[190px]">
+                                        Loading chart for {q.symbol}…
+                                      </div>
+                                    ) : err && detail.history.length < 5 ? (
+                                      <div className="flex h-[150px] flex-col items-center justify-center gap-2 text-sm text-amber-200/85">
+                                        <span>{err}</span>
+                                        <Button
+                                          size="xs"
+                                          variant="outline"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            loadDetail(q.symbol, q);
+                                          }}
+                                        >
+                                          Retry
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <ForecastChart quote={detail} compact side />
+                                    )}
                                   </div>
-                                );
-                              }
-                              if (err && detail.history.length < 5) {
-                                return (
-                                  <div className="flex h-[160px] flex-col items-center justify-center gap-2 text-sm text-amber-200/85">
-                                    <span>{err}</span>
-                                    <Button
-                                      size="xs"
-                                      variant="outline"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        loadDetail(q.symbol, q);
-                                      }}
-                                    >
-                                      Retry
-                                    </Button>
-                                  </div>
-                                );
-                              }
-                              return <ForecastChart quote={detail} compact />;
+                                </div>
+                              );
                             })()}
                           </div>
                         </td>
