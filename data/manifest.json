@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-16T13:03:54.124Z",
-  "count": 183,
+  "generatedAt": "2026-11-17T03:57:13.538Z",
+  "count": 185,
   "symbols": [
     "000858.SZ",
     "0100.HK",
@@ -154,6 +154,8 @@
     "SBUX",
     "SCHW",
     "SCZM",
+    "SENEA",
+    "SENEB",
     "SHOP",
     "SKHY",
     "SNOW",
@@ -186,14 +188,5 @@
     "WPM",
     "XOM"
   ],
-  "errors": [
-    {
-      "symbol": "SENEA",
-      "message": "No live quote for SENEA"
-    },
-    {
-      "symbol": "SENEB",
-      "message": "No live quote for SENEB"
-    }
-  ]
+  "errors": []
 }
